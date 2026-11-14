@@ -10,6 +10,7 @@ import { prepareLegendLUT, calculateAverageLegendValue, type PreparedLegendLUT }
 import { calculateRegionGrid, calculateSpatialProfiles } from '../extension/src/analysis/regions';
 import { calculateMotionAndEvents } from '../extension/src/analysis/motion';
 import { clamp, round3 } from '../extension/src/analysis/normalize';
+import { EarthJukeboxAudioEngine, type SonificationMode } from '../extension/src/audio';
 
 const PRESETS = presetsData as Record<string, PresetConfig>;
 
@@ -36,6 +37,7 @@ const volumeSlider = document.getElementById('volumeSlider') as HTMLInputElement
 const demoPresetSelect = document.getElementById('demoPresetSelect') as HTMLSelectElement;
 const demoPresetDescription = document.getElementById('demoPresetDescription') as HTMLParagraphElement;
 const demoSoundLegend = document.getElementById('demoSoundLegend') as HTMLDivElement;
+const demoModeSelect = document.getElementById('demoModeSelect') as HTMLSelectElement;
 const audioStatusBadge = document.getElementById('audioStatusBadge') as HTMLSpanElement;
 
 // Dashboard Value Elements
@@ -71,16 +73,11 @@ const offscreenCtx = offscreenAnalysisCanvas.getContext('2d', { willReadFrequent
 let previousBuffer: Uint8ClampedArray | null = null;
 const cellBaselines = new Float32Array(64).fill(0.1);
 
-// Web Audio Synth State
-let audioCtx: AudioContext | null = null;
-let masterGain: GainNode | null = null;
-let analyser: AnalyserNode | null = null;
-let synthOsc1: OscillatorNode | null = null;
-let synthGain1: GainNode | null = null;
-let synthPanner1: StereoPannerNode | null = null;
-let synthOsc2: OscillatorNode | null = null;
-let synthGain2: GainNode | null = null;
-let synthPanner2: StereoPannerNode | null = null;
+// Earth Jukebox Sonification Audio Engine (Pranav K)
+const audioEngine = new EarthJukeboxAudioEngine({
+  mode: 'scientific',
+  masterVolume: 0.7
+});
 
 // Initialize
 function init(): void {
@@ -118,6 +115,7 @@ function updatePresetInfo(): void {
     valPhysicalUnit.textContent = `Approximate intensity`;
   }
   preparedLut = prepareLegendLUT(activePreset.legend);
+  audioEngine.setPreset(activePreset.id);
   cellBaselines.fill(0.1);
   previousBuffer = null;
   drawRoiOverlay();
@@ -421,116 +419,12 @@ function updateDashboard(p: EjbFramePayload): void {
 }
 
 // -------------------------------------------------------------
-// Web Audio Synthesizer (Listens directly to "ejb:frame")
+// Web Audio Synthesizer (Powered by EarthJukeboxAudioEngine)
 // -------------------------------------------------------------
 function initAudioEngine(): void {
-  if (audioCtx) return;
-
-  const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-  audioCtx = new AudioContextClass();
-
-  masterGain = audioCtx.createGain();
-  masterGain.gain.setValueAtTime(parseFloat(volumeSlider.value), audioCtx.currentTime);
-
-  analyser = audioCtx.createAnalyser();
-  analyser.fftSize = 128;
-
-  masterGain.connect(analyser);
-  analyser.connect(audioCtx.destination);
-
-  // Voice 1: Main melodic/harmonic voice driven by dataValue / brightness
-  synthOsc1 = audioCtx.createOscillator();
-  synthOsc1.type = 'triangle';
-  synthGain1 = audioCtx.createGain();
-  synthGain1.gain.setValueAtTime(0.2, audioCtx.currentTime);
-  synthPanner1 = audioCtx.createStereoPanner();
-  synthPanner1.pan.setValueAtTime(0, audioCtx.currentTime);
-
-  synthOsc1.connect(synthGain1);
-  synthGain1.connect(synthPanner1);
-  synthPanner1.connect(masterGain);
-  synthOsc1.start();
-
-  // Voice 2: Ambient pad driven by spatial grid
-  synthOsc2 = audioCtx.createOscillator();
-  synthOsc2.type = 'sine';
-  synthGain2 = audioCtx.createGain();
-  synthGain2.gain.setValueAtTime(0.15, audioCtx.currentTime);
-  synthPanner2 = audioCtx.createStereoPanner();
-
-  synthOsc2.connect(synthGain2);
-  synthGain2.connect(synthPanner2);
-  synthPanner2.connect(masterGain);
-  synthOsc2.start();
-
-  audioStatusBadge.textContent = 'Audio: Live (Web Audio)';
+  audioEngine.start();
+  audioStatusBadge.textContent = 'Audio: Live (Web Audio - Pranav)';
   audioStatusBadge.classList.add('active');
-
-  // Listen directly for ejb:frame contract events!
-  window.addEventListener('ejb:frame', (e: Event) => {
-    const customEvt = e as CustomEvent<EjbFramePayload>;
-    handleSonificationFrame(customEvt.detail);
-  });
-}
-
-function handleSonificationFrame(payload: EjbFramePayload): void {
-  if (!audioCtx || !synthOsc1 || !synthOsc2 || !synthPanner1 || !synthPanner2) return;
-
-  const now = audioCtx.currentTime;
-  const metrics = payload.metrics;
-
-  // Frequency mapping: dataValue (or brightness fallback) to pitch
-  // Uses pentatonic scale or continuous pitch in 130 Hz - 587 Hz (C3 - D5)
-  const normVal = metrics.dataValue ?? metrics.brightness;
-  const freq1 = 130 + normVal * 420;
-
-  synthOsc1.frequency.setTargetAtTime(freq1, now, 0.05);
-
-  // Voice 2 follows regional center of mass or hue
-  const freq2 = 220 + metrics.hue * 330;
-  synthOsc2.frequency.setTargetAtTime(freq2, now, 0.08);
-
-  // Stereo Panning from regions: calculate horizontal centroid across the 8 columns
-  let totalLeft = 0;
-  let totalRight = 0;
-  const b = metrics.regions.brightness;
-  for (let r = 0; r < 4; r++) {
-    for (let c = 0; c < 8; c++) {
-      const val = b[r * 8 + c];
-      if (c < 4) totalLeft += val;
-      else totalRight += val;
-    }
-  }
-  const pan = totalLeft + totalRight > 0 ? (totalRight - totalLeft) / (totalLeft + totalRight) : 0;
-  synthPanner1.pan.setTargetAtTime(clamp(pan, -0.9, 0.9), now, 0.05);
-
-  // Percussive click on lightning/flash events
-  if (payload.events && payload.events.length > 0) {
-    triggerFlashSound(payload.events[0]);
-  }
-}
-
-function triggerFlashSound(event: { x: number; intensity: number }): void {
-  if (!audioCtx || !masterGain) return;
-  const now = audioCtx.currentTime;
-
-  const clickOsc = audioCtx.createOscillator();
-  clickOsc.type = 'sawtooth';
-  clickOsc.frequency.setValueAtTime(800 + event.intensity * 600, now);
-
-  const clickGain = audioCtx.createGain();
-  clickGain.gain.setValueAtTime(0.3 * event.intensity, now);
-  clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
-
-  const panner = audioCtx.createStereoPanner();
-  panner.pan.setValueAtTime(clamp((event.x - 0.5) * 2, -1, 1), now);
-
-  clickOsc.connect(clickGain);
-  clickGain.connect(panner);
-  panner.connect(masterGain);
-
-  clickOsc.start(now);
-  clickOsc.stop(now + 0.09);
 }
 
 function setupAudioVisualizerLoop(): void {
@@ -542,6 +436,7 @@ function setupAudioVisualizerLoop(): void {
     visCtx.fillStyle = '#060b17';
     visCtx.fillRect(0, 0, w, h);
 
+    const analyser = audioEngine.getAnalyserNode();
     if (!analyser) {
       visCtx.strokeStyle = '#223254';
       visCtx.lineWidth = 1.5;
@@ -609,13 +504,11 @@ function updateTimeDisplay(): void {
 
 function setupEventListeners(): void {
   playPauseBtn.addEventListener('click', () => {
-    initAudioEngine();
-    if (audioCtx && audioCtx.state === 'suspended') {
-      audioCtx.resume();
-    }
-
     isPlaying = !isPlaying;
     if (isPlaying) {
+      audioEngine.start();
+      audioStatusBadge.textContent = 'Audio: Live (Web Audio - Pranav)';
+      audioStatusBadge.classList.add('active');
       playPauseBtn.textContent = '⏸ Pause Sonification';
       playPauseBtn.classList.add('active');
       if (mediaSourceSelect.value !== 'synthetic') {
@@ -623,6 +516,9 @@ function setupEventListeners(): void {
       }
       animFrameId = requestAnimationFrame(loop);
     } else {
+      audioEngine.pause();
+      audioStatusBadge.textContent = 'Audio: Paused';
+      audioStatusBadge.classList.remove('active');
       playPauseBtn.textContent = '▶ Start Sonification';
       playPauseBtn.classList.remove('active');
       if (mediaSourceSelect.value !== 'synthetic') {
@@ -652,9 +548,11 @@ function setupEventListeners(): void {
   });
 
   volumeSlider.addEventListener('input', () => {
-    if (masterGain && audioCtx) {
-      masterGain.gain.setValueAtTime(parseFloat(volumeSlider.value), audioCtx.currentTime);
-    }
+    audioEngine.setMasterVolume(parseFloat(volumeSlider.value));
+  });
+
+  demoModeSelect.addEventListener('change', () => {
+    audioEngine.setMode(demoModeSelect.value as SonificationMode);
   });
 
   demoPresetSelect.addEventListener('change', () => {

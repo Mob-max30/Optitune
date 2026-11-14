@@ -13,6 +13,8 @@ const srAnnouncer = document.getElementById('srAnnouncer') as HTMLDivElement;
 const presetSelect = document.getElementById('presetSelect') as HTMLSelectElement;
 const presetDescription = document.getElementById('presetDescription') as HTMLParagraphElement;
 const soundLegendText = document.getElementById('soundLegendText') as HTMLDivElement;
+const modeSelect = document.getElementById('modeSelect') as HTMLSelectElement;
+const volumeRange = document.getElementById('volumeRange') as HTMLInputElement;
 
 const metricLuma = document.getElementById('metricLuma') as HTMLSpanElement;
 const meterLumaBar = document.getElementById('meterLumaBar') as HTMLDivElement;
@@ -111,6 +113,10 @@ function fetchStatus(): void {
 
     updateUiState(res.isActive, res.hasMedia, res.activePreset);
 
+    if (res.mode && modeSelect.value !== res.mode) {
+      modeSelect.value = res.mode;
+    }
+
     if (res.t !== undefined) {
       videoTime.textContent = `${res.t.toFixed(2)}s`;
       frameIdx.textContent = String(res.frameIndex ?? 0);
@@ -132,6 +138,20 @@ function setupEvents(): void {
         announce(res.isActive ? 'Sonification started.' : 'Sonification stopped.');
       }
     });
+  });
+
+  modeSelect.addEventListener('change', () => {
+    if (!activeTabId) return;
+    const mode = modeSelect.value;
+    chrome.tabs.sendMessage(activeTabId, { type: 'SET_MODE', mode }, () => {
+      announce(`Sonification mode set to ${mode}.`);
+    });
+  });
+
+  volumeRange.addEventListener('input', () => {
+    if (!activeTabId) return;
+    const volume = parseFloat(volumeRange.value);
+    chrome.tabs.sendMessage(activeTabId, { type: 'SET_VOLUME', volume });
   });
 
   presetSelect.addEventListener('change', () => {

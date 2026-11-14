@@ -56,6 +56,22 @@
       </p>
     </section>
 
+    <!-- Sonification Audio Mode & Volume (Pranav K) -->
+    <section class="section">
+      <label for="modeSelect" class="section-label">
+        Sonification Mode (Audio Engine)
+      </label>
+      <select id="modeSelect" class="select" aria-label="Select Sonification Mode">
+        <option value="scientific">Scientific Mode (Continuous Physical)</option>
+        <option value="artistic">Musical Mode (Quantized Scales)</option>
+        <option value="scanner">Caldwell-73 Scanner Mode</option>
+      </select>
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px;">
+        <label for="volumeRange" style="font-size: 11px; color: #94a3b8; font-weight: 600;">Volume</label>
+        <input type="range" id="volumeRange" min="0" max="1" step="0.05" value="0.8" style="width: 150px; accent-color: #38bdf8;" aria-label="Master Audio Volume">
+      </div>
+    </section>
+
     <!-- Live Scientific Metrics Monitor -->
     <section class="section metrics-section">
       <h2 class="section-label">Live Scientific Metrics</h2>

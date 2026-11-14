@@ -141,8 +141,16 @@
         <!-- Audio Engine & Synthesizer Monitor -->
         <div class="synth-monitor">
           <div class="section-title-sm">
-            <span>3. Web Audio Sonification Engine Status</span>
+            <span>3. Web Audio Sonification Engine (Pranav K)</span>
             <span class="sub-note" id="synthStatus">Listening for CustomEvent "ejb:frame"</span>
+          </div>
+          <div class="mode-selector-row" style="display: flex; align-items: center; justify-content: space-between; margin: 8px 0;">
+            <label for="demoModeSelect" style="font-size: 0.82rem; color: #94a3b8; font-weight: 600;">Sonification Mode:</label>
+            <select id="demoModeSelect" class="input-select" style="max-width: 220px; padding: 4px 8px; font-size: 0.8rem;">
+              <option value="scientific">Scientific (Continuous Physical)</option>
+              <option value="artistic">Musical / Aesthetic (Quantized)</option>
+              <option value="scanner">Caldwell-73 Scanner Mode</option>
+            </select>
           </div>
           <canvas id="audioVisualizer" width="380" height="60" class="audio-scope"></canvas>
           <div class="sound-legend-box" id="demoSoundLegend">

@@ -203,6 +203,26 @@ This table details the deterministic translation of visual scientific metrics in
 | `events` (`flash`) | Percussive Acoustic Transient | Synthesized sawtooth click, panned to strike X | Lightning strike or intense illumination flash produces crisp percussive accents |
 | `flags.seeked` / `scene_cut` | Portamento / Smoothing Bypass | Envelope resets instantly to target state | Prevents artificial frequency sliding when user scrubs timeline or scene cuts |
 
+### 6.1 Three Selectable Sonification Modes
+The engine supports three distinct operational modes switchable in real time:
+
+1. **Scientific Continuous Mode (Default):**
+   Continuous logarithmic frequency mapping with zero quantization distortion:
+   $$f(V) = f_{\min} \cdot \left(\frac{f_{\max}}{f_{\min}}\right)^{\text{dataValue}}$$
+   Ideal for scientific analysis, researcher inspection, and exact contour tracking.
+2. **Musical / Aesthetic Mode:**
+   Quantizes continuous data metrics to consonant musical scales (Pentatonic Major, Pentatonic Minor, Akebono, Dorian, Lydian) across a 2.5-octave range. Preserves physical trend directionality while ensuring harmonic pleasantness for public outreach, museums, and classrooms.
+3. **Caldwell-73 Horizontal Scanner Mode:**
+   Inspired by NASA's Chandra/Hubble sonification of Caldwell 73. Columns 0–31 are scanned sequentially across time from left to right; vertical row positions map to pitch (high latitude = soprano, low latitude = bass); brightness maps to amplitude.
+
+### 6.2 Multi-Voice Polyphony & Spatial Architecture
+The audio graph feeds six simultaneous acoustic voices into a master bus:
+- **Lead Voice:** Dual-oscillator (triangle/saw) with detune chorus (+7 cents) and resonant lowpass filter tracking primary measurement.
+- **Latitudinal Pad Voice:** 4-voice polyphonic pad representing the 4 latitudinal rows (Row 0: North/Soprano, Row 1: Mid-North/Alto, Row 2: Mid-South/Tenor, Row 3: South/Bass).
+- **Transient Percussion Voice:** Fast exponential decay (70 ms) resonant strike panned to event X coordinate.
+- **Textural Noise Voice:** Pink noise with modulated bandpass filter for aerosol smoke/dust layers and ocean wave wash.
+- **Hearing Safety Limiter:** Master DynamicsCompressorNode thresholded at -18 dB (6:1 ratio, 3 ms attack) ensuring complete protection against acoustic shock and listener fatigue.
+
 ---
 
 ## 7. Accuracy, Assumptions & Limitations

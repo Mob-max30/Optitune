@@ -8,6 +8,7 @@ import { extractColorMetrics } from '../analysis/color';
 import { prepareLegendLUT, calculateAverageLegendValue, type PreparedLegendLUT } from '../analysis/legend';
 import { calculateRegionGrid, calculateSpatialProfiles } from '../analysis/regions';
 import { calculateMotionAndEvents } from '../analysis/motion';
+import { EarthJukeboxAudioEngine, type SonificationMode } from '../audio';
 
 const PRESETS = presetsData as Record<string, PresetConfig>;
 
@@ -18,6 +19,7 @@ class EarthJukeboxController {
   private mediaFinder: MediaFinder;
   private capturePipeline: FrameCapturePipeline | null = null;
   private worker: Worker | null = null;
+  private audioEngine = new EarthJukeboxAudioEngine();
 
   // Fallback direct analysis state if worker is unavailable under strict page CSP
   private useDirectAnalysis = false;
@@ -108,13 +110,16 @@ class EarthJukeboxController {
       switch (message.type) {
         case 'GET_STATUS': {
           const media = this.mediaFinder.getActiveMedia();
+          const telemetry = this.audioEngine.getTelemetry();
           sendResponse({
             isActive: this.isSonifying,
             hasMedia: Boolean(media),
             activePreset: this.activePreset,
             availablePresets: PRESETS,
             t: this.currentT,
-            frameIndex: this.currentFrameIndex
+            frameIndex: this.currentFrameIndex,
+            mode: telemetry.mode,
+            telemetry
           });
           return true;
         }
@@ -125,10 +130,27 @@ class EarthJukeboxController {
           return true;
         }
 
+        case 'SET_MODE': {
+          if (message.mode) {
+            this.audioEngine.setMode(message.mode as SonificationMode);
+            sendResponse({ success: true, mode: message.mode });
+          }
+          return true;
+        }
+
+        case 'SET_VOLUME': {
+          if (typeof message.volume === 'number') {
+            this.audioEngine.setMasterVolume(message.volume);
+            sendResponse({ success: true, volume: message.volume });
+          }
+          return true;
+        }
+
         case 'SELECT_PRESET': {
           const preset = PRESETS[message.presetId];
           if (preset) {
             this.activePreset = preset;
+            this.audioEngine.setPreset(preset.id);
             if (this.capturePipeline) {
               this.capturePipeline.updateConfig({
                 roi: preset.roi,
@@ -161,6 +183,10 @@ class EarthJukeboxController {
     const media = this.mediaFinder.getActiveMedia();
 
     if (this.isSonifying) {
+      this.audioEngine.start();
+      if (this.activePreset) {
+        this.audioEngine.setPreset(this.activePreset.id);
+      }
       if (media) {
         this.startCapture(media);
       } else {
@@ -170,6 +196,7 @@ class EarthJukeboxController {
         });
       }
     } else {
+      this.audioEngine.pause();
       if (this.capturePipeline) {
         this.capturePipeline.stop();
       }
@@ -185,6 +212,7 @@ class EarthJukeboxController {
   }
 
   private handleMediaLost(): void {
+    this.audioEngine.pause();
     if (this.capturePipeline) {
       this.capturePipeline.stop();
     }
@@ -195,6 +223,13 @@ class EarthJukeboxController {
     this.currentT = time;
     if (state === 'seeked') {
       this.isSeeked = true;
+    }
+    if (this.isSonifying) {
+      if (state === 'playing') {
+        this.audioEngine.resume();
+      } else if (state === 'paused' || state === 'ended') {
+        this.audioEngine.pause();
+      }
     }
     this.emitter.emitState({ state, t: time });
   }
