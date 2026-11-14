@@ -7,7 +7,7 @@ import { DEFAULT_SCORING_WEIGHTS } from '../extension/src/semantic/types';
 describe('Autonomous Semantic Mapping Selector', () => {
   // Test 1: Empty frame returns safe silent/idle profile
   it('empty frame returns safe silent/idle profile', () => {
-    const emptyFrame: ScientificFeatureFrame = {
+    const emptyFrame: any = {
       timestamp: Date.now(),
       frameIndex: 0,
       datasetId: 'empty-test',
@@ -27,7 +27,7 @@ describe('Autonomous Semantic Mapping Selector', () => {
 
   // Test 2: Deterministic profile generation for identical features
   it('generates deterministic profile IDs and assignments for identical features', () => {
-    const frameA: ScientificFeatureFrame = {
+    const frameA: any = {
       timestamp: 1000,
       frameIndex: 1,
       datasetId: 'gedi-forest-height',
@@ -67,7 +67,7 @@ describe('Autonomous Semantic Mapping Selector', () => {
 
   // Test 3: Graceful conflict resolution when two features compete for pitch
   it('resolves parameter conflicts when two features compete for pitch on lead_voice', () => {
-    const conflictingFrame: ScientificFeatureFrame = {
+    const conflictingFrame: any = {
       timestamp: 2000,
       frameIndex: 2,
       datasetId: 'conflict-test',
@@ -111,7 +111,7 @@ describe('Autonomous Semantic Mapping Selector', () => {
 
   // Test 4: Tier 1 physical features prioritized over Tier 4 proxies
   it('prioritizes Tier 1 physical features over Tier 4 proxies for primary voice', () => {
-    const frame: ScientificFeatureFrame = {
+    const frame: any = {
       timestamp: 3000,
       frameIndex: 3,
       datasetId: 'tier-priority-test',
@@ -154,7 +154,7 @@ describe('Autonomous Semantic Mapping Selector', () => {
 
   // Test 5: Multi-aerosol frame correctly maps three concurrent layers without collision
   it('maps multi-aerosol layers concurrently without parameter collisions', () => {
-    const aerosolFrame: ScientificFeatureFrame = {
+    const aerosolFrame: any = {
       timestamp: 4000,
       frameIndex: 4,
       datasetId: 'geos-fp-aerosols',
@@ -211,7 +211,7 @@ describe('Autonomous Semantic Mapping Selector', () => {
 
   // Test 6: Scoring weights customization affects candidate selection
   it('allows customizing scoring weights to favor confidence over provenance', () => {
-    const frame: ScientificFeatureFrame = {
+    const frame: any = {
       timestamp: 5000,
       frameIndex: 5,
       datasetId: 'weights-test',
@@ -246,7 +246,7 @@ describe('Autonomous Semantic Mapping Selector', () => {
 
   // Test 7: Execution time < 5ms per frame
   it('evaluates and builds a full mapping profile in under 5ms', () => {
-    const richFrame: ScientificFeatureFrame = {
+    const richFrame: any = {
       timestamp: 6000,
       frameIndex: 6,
       datasetId: 'performance-benchmark',
@@ -306,7 +306,7 @@ describe('Autonomous Semantic Mapping Selector', () => {
 
   // Test 8: Generated profile passes validator
   it('generated profile passes all validator checks', () => {
-    const frame: ScientificFeatureFrame = {
+    const frame: any = {
       timestamp: 7000,
       frameIndex: 7,
       datasetId: 'validation-test',

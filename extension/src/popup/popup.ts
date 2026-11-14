@@ -1,7 +1,5 @@
 import type { PresetConfig, EjbFramePayload } from '../contract/types';
-import presetsData from '../presets/visualizations.json';
-
-const PRESETS = presetsData as Record<string, PresetConfig>;
+import { PRESETS } from '../presets';
 
 let activeTabId: number | null = null;
 let pollTimer: number | null = null;

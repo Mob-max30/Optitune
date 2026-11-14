@@ -223,10 +223,7 @@ export class AutonomousAudioEngineAdapter {
         }
       },
       flags: {
-        seeking: false,
         seeked: false,
-        paused: false,
-        buffering: false,
         scene_cut: false
       },
       events: params.eventsToTrigger.map(e => ({

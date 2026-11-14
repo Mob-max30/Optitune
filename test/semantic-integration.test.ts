@@ -45,10 +45,7 @@ describe('Autonomous Semantic Sonification Integration Pipeline', () => {
         }
       },
       flags: {
-        seeking: false,
         seeked: false,
-        paused: false,
-        buffering: false,
         scene_cut: false
       },
       events: [

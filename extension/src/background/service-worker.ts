@@ -15,12 +15,13 @@ chrome.runtime.onInstalled.addListener(() => {
 chrome.commands.onCommand.addListener(async (command) => {
   if (command === 'toggle-sonification') {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tab && tab.id) {
-      chrome.tabs.sendMessage(tab.id, { type: 'TOGGLE_SONIFICATION' }, (response) => {
+    const tabId = tab?.id;
+    if (tabId !== undefined) {
+      chrome.tabs.sendMessage(tabId, { type: 'TOGGLE_SONIFICATION' }, (response) => {
         if (chrome.runtime.lastError) {
           console.warn('[EJB Background] Content script not active on this tab:', chrome.runtime.lastError.message);
         } else if (response) {
-          updateBadge(tab.id, response.extensionEnabled ?? response.isActive);
+          updateBadge(tabId, response.extensionEnabled ?? response.isActive);
         }
       });
     }

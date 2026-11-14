@@ -3,7 +3,7 @@ import type {
   EjbReadyPayload,
   PresetConfig
 } from '../extension/src/contract/types';
-import presetsData from '../extension/src/presets/visualizations.json';
+import { PRESETS } from '../extension/src/presets';
 import { calculateAverageLuminance } from '../extension/src/analysis/luminance';
 import { extractColorMetrics } from '../extension/src/analysis/color';
 import { prepareLegendLUT, calculateAverageLegendValue, type PreparedLegendLUT } from '../extension/src/analysis/legend';
@@ -11,8 +11,6 @@ import { calculateRegionGrid, calculateSpatialProfiles } from '../extension/src/
 import { calculateMotionAndEvents } from '../extension/src/analysis/motion';
 import { clamp, round3 } from '../extension/src/analysis/normalize';
 import { EarthJukeboxAudioEngine, type SonificationMode } from '../extension/src/audio';
-
-const PRESETS = presetsData as Record<string, PresetConfig>;
 
 // DOM Elements
 const simulationCanvas = document.getElementById('simulationCanvas') as HTMLCanvasElement;

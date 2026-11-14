@@ -18,9 +18,7 @@ import type {
   SourceProvenanceTier,
   CalibrationStatus
 } from '../types';
-import presetsData from '../../presets/visualizations.json';
-
-const PRESETS = presetsData as Record<string, PresetConfig>;
+import { PRESETS } from '../../presets';
 
 export function adaptContractV1ToSfr(payload: EjbFramePayload): ScientificFeatureFrame {
   const { vizId, t, frameIndex, metrics, flags, events, layers } = payload;

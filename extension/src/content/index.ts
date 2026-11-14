@@ -2,7 +2,7 @@ import { MediaFinder, type TrackedMedia } from './media-finder';
 import { FrameCapturePipeline, type CapturedFrame } from './capture';
 import { EjbEmitter } from './emitter';
 import type { PresetConfig, EjbReadyPayload, EjbFramePayload, EjbControlPayload } from '../contract/types';
-import presetsData from '../presets/visualizations.json';
+import { PRESETS } from '../presets';
 import { calculateAverageLuminance } from '../analysis/luminance';
 import { extractColorMetrics } from '../analysis/color';
 import { prepareLegendLUT, calculateAverageLegendValue, type PreparedLegendLUT } from '../analysis/legend';
@@ -11,7 +11,9 @@ import { calculateMotionAndEvents } from '../analysis/motion';
 import { EarthJukeboxAudioEngine, type SonificationMode } from '../audio';
 import { clamp, round3 } from '../analysis/normalize';
 
-const PRESETS = presetsData as Record<string, PresetConfig>;
+function isSonificationMode(val: unknown): val is SonificationMode {
+  return val === 'scientific' || val === 'artistic' || val === 'scanner';
+}
 
 class EarthJukeboxController {
   private extensionEnabled = true;
@@ -57,7 +59,7 @@ class EarthJukeboxController {
       if (typeof items.masterVolume === 'number') {
         this.audioEngine.setMasterVolume(items.masterVolume);
       }
-      if (items.activeMode) {
+      if (isSonificationMode(items.activeMode)) {
         this.audioEngine.setMode(items.activeMode);
       }
 
