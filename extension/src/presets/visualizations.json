@@ -191,5 +191,23 @@
     "grid": [4, 8],
     "description": "NASA's pioneering astronomical sonification method translating x-axis to time, y-axis to pitch, and brightness to volume.",
     "soundHint": "Full horizontal scanner mode enabled: scans left-to-right columns mapping vertical light distributions into melodic chords."
+  },
+  "thermal-fire": {
+    "id": "thermal-fire",
+    "name": "Thermal Radiation & Wildfire Hotspots",
+    "roi": [0.02, 0.04, 0.96, 0.92],
+    "tickHz": 12,
+    "grid": [4, 8],
+    "description": "Thermal infrared radiation, volcanic heat signatures, and actively propagating wildfire perimeters.",
+    "soundHint": "Fiery Sitar plucks and searing komal Re/teevra Ma of Raaga Marwa driven over rapid 12-beat Ektaal."
+  },
+  "aurora-solar": {
+    "id": "aurora-solar",
+    "name": "Polar Auroras & Solar Energetic Particles",
+    "roi": [0.02, 0.02, 0.96, 0.96],
+    "tickHz": 12,
+    "grid": [4, 8],
+    "description": "Atmospheric auroral emissions, polar geomagnetic ribbons, and solar coronal mass ejections.",
+    "soundHint": "Brilliant soaring pentatonic melodies of Raaga Hansadhwani on Sitar accompanied by majestic 16-beat Teentaal."
   }
 }

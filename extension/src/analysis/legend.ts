@@ -158,10 +158,12 @@ export function mapPixelToLegendValue(
 /**
  * Calculates mean legend-calibrated value across an RGBA image buffer.
  * Ignores uncalibrated or background pixels.
+ * If minCoverageFraction > 0, returns null if fewer than minCoverageFraction of pixels match.
  */
 export function calculateAverageLegendValue(
   data: Uint8ClampedArray,
-  lut: PreparedLegendLUT | null
+  lut: PreparedLegendLUT | null,
+  minCoverageFraction = 0.0
 ): number | null {
   if (!lut) return null;
 
@@ -178,5 +180,11 @@ export function calculateAverageLegendValue(
   }
 
   if (count === 0) return null;
+
+  const totalPixels = len / 4;
+  if (totalPixels > 0 && minCoverageFraction > 0 && (count / totalPixels) < minCoverageFraction) {
+    return null;
+  }
+
   return round3(clamp(sumNorm / count, 0.0, 1.0));
 }

@@ -184,6 +184,38 @@ export const PRESET_AUDIO_PROFILES: Record<string, PresetAudioProfile> = {
     reverbDecay: 2.0,
     harmonicSpread: 0.2,
     soundLegend: 'Caldwell-73 Scanner Mode: Time scans horizontally from left to right across columns. Vertical latitude maps to pitch (top = high, bottom = low).'
+  },
+
+  'thermal-fire': {
+    id: 'thermal-fire',
+    defaultMode: 'raaga',
+    preferredScale: 'chromatic',
+    baseFrequency: 130.81, // C3
+    maxFrequency: 783.99,  // G5
+    primaryMetric: 'brightness',
+    oscillatorType: 'sawtooth',
+    filterType: 'bandpass',
+    baseCutoff: 1200,
+    maxCutoff: 8500,
+    reverbDecay: 2.4,
+    harmonicSpread: 0.35,
+    soundLegend: 'Thermal & Wildfire: Searing Raaga Marwa with komal Re and teevra Ma on Sitar over 12-beat Ektaal.'
+  },
+
+  'aurora-solar': {
+    id: 'aurora-solar',
+    defaultMode: 'raaga',
+    preferredScale: 'pentatonic-major',
+    baseFrequency: 196.00, // G3
+    maxFrequency: 880.00,  // A5
+    primaryMetric: 'brightness',
+    oscillatorType: 'triangle',
+    filterType: 'lowpass',
+    baseCutoff: 1000,
+    maxCutoff: 9000,
+    reverbDecay: 3.8,
+    harmonicSpread: 0.3,
+    soundLegend: 'Auroras & Solar Wind: Brilliant Raaga Hansadhwani on Sitar over majestic 16-beat Teentaal.'
   }
 };
 

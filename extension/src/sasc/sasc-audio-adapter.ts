@@ -166,7 +166,9 @@ export class SascAudioEngineAdapter {
     };
 
     if (this.engine) {
-      this.engine.processFrame(syntheticPayload);
+      if (this.engine.getTelemetry().mode !== 'raaga') {
+        this.engine.processFrame(syntheticPayload);
+      }
       return this.engine.getTelemetry();
     }
 

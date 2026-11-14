@@ -174,11 +174,15 @@ export class EarthJukeboxAudioEngine {
       this.noiseVoice?.fadeTo(0, 0.05);
       this.tanpuraVoice?.stop();
       this.tablaVoice?.stop();
+      this.raagaMelodicVoice?.silence();
       if (this.isRunning) {
         this.scannerVoice?.start();
       }
     } else if (mode === 'raaga') {
       this.scannerVoice?.stop();
+      this.leadVoice?.fadeTo(0, 0.05);
+      this.padVoice?.fadeTo(0, 0.05);
+      this.noiseVoice?.fadeTo(0, 0.05);
       if (this.isRunning) {
         this.tanpuraVoice?.start();
         this.tablaVoice?.start();
@@ -187,6 +191,7 @@ export class EarthJukeboxAudioEngine {
       this.scannerVoice?.stop();
       this.tanpuraVoice?.stop();
       this.tablaVoice?.stop();
+      this.raagaMelodicVoice?.silence();
     }
 
     // Notify visual pipeline of mode change if needed
@@ -286,7 +291,9 @@ export class EarthJukeboxAudioEngine {
     const activeVizId = vizId || this.activeProfile.id;
     const raaga = getRaagaForDataset(activeVizId);
     const taala = getTaalaForDataset(activeVizId);
-    const rootMidi = 48 + Math.floor(metrics.hue * 4) * 2;
+    // Dynamic Root Sa across the 12 chromatic pitches based on dominant color hue!
+    const semitone = Math.round(metrics.hue * 11) % 12;
+    const rootMidi = 48 + semitone;
     let currentSwaraName: string | undefined = undefined;
 
     if (this.currentMode === 'raaga') {
@@ -402,26 +409,34 @@ export class EarthJukeboxAudioEngine {
       }
     }
 
-    // 7. Update Regional Ambient Pad (4 latitudinal rows)
-    const padPresence = 0.1 + metrics.brightness * 0.4;
-    this.padVoice.update(
-      spatial.rowEnergies,
-      metrics.hue,
-      padPresence,
-      0.08
-    );
+    // 7. Update Regional Ambient Pad (4 latitudinal rows) - silenced in Raaga mode to maintain acoustic purity
+    if (this.currentMode !== 'raaga') {
+      const padPresence = 0.1 + metrics.brightness * 0.4;
+      this.padVoice.update(
+        spatial.rowEnergies,
+        metrics.hue,
+        padPresence,
+        0.08
+      );
+    } else {
+      this.padVoice.update([0, 0, 0, 0], metrics.hue, 0.0, 0.05);
+    }
 
-    // 8. Update Texture / Aerosol Noise Voice
-    const noiseIntensity = metrics.motion > 0.05 || (layers && Object.keys(layers).length > 0)
-      ? metrics.motion * 0.8
-      : 0.0;
-    this.noiseVoice.update(
-      noiseIntensity,
-      metrics.motion,
-      spatial.pan * 0.5,
-      layers,
-      0.08
-    );
+    // 8. Update Texture / Aerosol Noise Voice - silenced in Raaga mode to maintain acoustic purity
+    if (this.currentMode !== 'raaga') {
+      const noiseIntensity = metrics.motion > 0.05 || (layers && Object.keys(layers).length > 0)
+        ? metrics.motion * 0.8
+        : 0.0;
+      this.noiseVoice.update(
+        noiseIntensity,
+        metrics.motion,
+        spatial.pan * 0.5,
+        layers,
+        0.08
+      );
+    } else {
+      this.noiseVoice.update(0.0, 0.0, 0.0, undefined, 0.05);
+    }
 
     // 9. Trigger Discrete Percussion Hits (Flashes / Lightning)
     if (events && events.length > 0 && this.percussionVoice) {
@@ -437,10 +452,10 @@ export class EarthJukeboxAudioEngine {
       leadGain: parseFloat(smoothedGain.toFixed(3)),
       pan: parseFloat(smoothedPan.toFixed(3)),
       filterCutoff: Math.round(smoothedCutoff),
-      activeVoices: 6, // Lead (2) + Pad (4)
+      activeVoices: this.currentMode === 'raaga' ? 7 : 6, // Tanpura (4) + Tabla (2) + Lead (1)
       eventsTriggered: this.eventsTriggeredCount,
       mode: this.currentMode,
-      vizId: this.activeProfile.id,
+      vizId: activeVizId,
       raagaName: raaga.name,
       taalaName: taala.name,
       currentSwara: currentSwaraName

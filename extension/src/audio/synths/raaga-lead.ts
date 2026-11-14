@@ -94,6 +94,15 @@ export class IndianMelodicVoice {
   }
 
   /**
+   * Silences the melodic voice immediately.
+   */
+  silence(): void {
+    if (this.ctx.state !== 'closed') {
+      this.gainNode.gain.setTargetAtTime(0.0, this.ctx.currentTime, 0.05);
+    }
+  }
+
+  /**
    * Updates melodic phrase in real time from normalized scientific data [0.0, 1.0].
    * Glides gracefully between swaras via Meend.
    */
@@ -103,8 +112,15 @@ export class IndianMelodicVoice {
     pan = 0.0,
     motion = 0.04
   ): { frequency: number; swara: SwaraName; midiNote: number } {
-    const quantized = quantizeToRaagaSwara(normalizedValue, this.activeRaaga, this.rootMidi);
     const now = this.ctx.currentTime;
+
+    // Organic phrasing contour: Traverses Arohana and Avarohana modulated by spatial pan, time, and motion
+    // Prevents static drone even when input video values are stable!
+    const phraseLaya = 1.0 + motion * 3.0; // Speeds up phrase progression with visual motion
+    const phraseContour = Math.sin(now * phraseLaya + pan * 1.8) * 0.22;
+    const dynamicValue = Math.max(0.0, Math.min(1.0, normalizedValue + phraseContour));
+
+    const quantized = quantizeToRaagaSwara(dynamicValue, this.activeRaaga, this.rootMidi);
     const isNewSwara = quantized.swara !== this.currentSwara;
 
     this.currentSwara = quantized.swara;

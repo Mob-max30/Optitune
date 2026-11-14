@@ -174,6 +174,36 @@ export const RAAGA_PROFILES: Record<string, RaagaProfile> = {
     timbre: 'bansuri',
     preferredTaala: 'keharwa',
     phenomenonDescription: 'The living biosphere sings the timeless, welcoming melody of Raaga Desh, celebrating the rivers, forests, and clouds of Mother Earth.'
+  },
+
+  // Thermal Radiation, Wildfires, Volcanoes -> Raaga Marwa (Searing, fiery intensity)
+  'thermal-fire': {
+    id: 'thermal-fire',
+    name: 'Raaga Marwa',
+    carnaticEquivalent: 'Gamanashrama',
+    thaath: 'Marwa',
+    swaras: ['S', 'r', 'G', 'M', 'D', 'N'],
+    vadi: 'D',
+    samvadi: 'r',
+    rasa: 'Raudra (Blazing Fire) & Tejas (Radiant Energy)',
+    timbre: 'sitar',
+    preferredTaala: 'ektaal',
+    phenomenonDescription: 'Searing wildfires, volcanic thermal hotspots, and solar flares blaze through the fiery komal Rishabh and teevra Madhyam of Raaga Marwa.'
+  },
+
+  // Auroras, Polar Geomagnetism & Solar Corona -> Raaga Hansadhwani (Brilliant celestial light)
+  'aurora-solar': {
+    id: 'aurora-solar',
+    name: 'Raaga Hansadhwani',
+    carnaticEquivalent: 'Hamsadhvani',
+    thaath: 'Bilawal',
+    swaras: ['S', 'R', 'G', 'P', 'N'],
+    vadi: 'S',
+    samvadi: 'P',
+    rasa: 'Adbhuta (Celestial Wonder) & Utsaha (Vibrant Aurora)',
+    timbre: 'sitar',
+    preferredTaala: 'teentaal',
+    phenomenonDescription: 'Atmospheric auroras and solar energetic particles dance across the vibrant, soaring pentatonic swaras of Raaga Hansadhwani.'
   }
 };
 
@@ -281,8 +311,80 @@ export const TAALA_PROFILES: Record<string, TaalaProfile> = {
       { beat: 9, bol: 'Dhi', type: 'tali', hasBayan: true, hasDayan: true, bayanPitch: 0.4, dayanStroke: 'ring' },
       { beat: 10, bol: 'Na', type: 'tali', hasBayan: false, hasDayan: true, dayanStroke: 'rim' }
     ]
+  },
+
+  // Ektaal (12 Beats: 2 + 2 + 2 + 2 + 2 + 2) — Fiery, structured rhythm for thermal/wildfire
+  ektaal: {
+    id: 'ektaal',
+    name: 'Ektaal',
+    matras: 12,
+    vibhaags: [2, 2, 2, 2, 2, 2],
+    defaultBpm: 88,
+    bols: [
+      { beat: 1, bol: 'Dhin', type: 'sam', hasBayan: true, hasDayan: true, bayanPitch: 0.3, dayanStroke: 'ring' },
+      { beat: 2, bol: 'Dhin', type: 'tali', hasBayan: true, hasDayan: true, bayanPitch: 0.3, dayanStroke: 'ring' },
+      { beat: 3, bol: 'Dha', type: 'khali', hasBayan: false, hasDayan: true, dayanStroke: 'rim' },
+      { beat: 4, bol: 'Ge', type: 'khali', hasBayan: true, hasDayan: false, bayanPitch: 0.5 },
+      { beat: 5, bol: 'Tin', type: 'tali', hasBayan: false, hasDayan: true, dayanStroke: 'muted' },
+      { beat: 6, bol: 'Na', type: 'tali', hasBayan: false, hasDayan: true, dayanStroke: 'rim' },
+      { beat: 7, bol: 'Kat', type: 'khali', hasBayan: false, hasDayan: true, dayanStroke: 'muted' },
+      { beat: 8, bol: 'Ta', type: 'khali', hasBayan: false, hasDayan: true, dayanStroke: 'rim' },
+      { beat: 9, bol: 'Dhin', type: 'tali', hasBayan: true, hasDayan: true, bayanPitch: 0.4, dayanStroke: 'ring' },
+      { beat: 10, bol: 'Dha', type: 'tali', hasBayan: true, hasDayan: true, bayanPitch: 0.4, dayanStroke: 'ring' },
+      { beat: 11, bol: 'Dhin', type: 'tali', hasBayan: true, hasDayan: true, bayanPitch: 0.4, dayanStroke: 'ring' },
+      { beat: 12, bol: 'Dha', type: 'tali', hasBayan: true, hasDayan: true, bayanPitch: 0.4, dayanStroke: 'ring' }
+    ]
   }
 };
+
+/**
+ * Classifies the visual phenomenon dynamically from live frame color metrics and luminance.
+ * This guarantees that ANY distinct video or image automatically receives its matching Raaga & Taala!
+ */
+export function classifyVisualPhenomenon(
+  hue: number,          // [0.0, 1.0]
+  saturation: number,   // [0.0, 1.0]
+  brightness: number,   // [0.0, 1.0]
+  motion = 0.0
+): string {
+  // 1. Extreme dark background with bright illumination clusters -> Night Lights
+  if (brightness < 0.22 && saturation < 0.40) {
+    return 'night-lights';
+  }
+
+  // 2. High motion bursts with optical spikes -> Lightning / Severe Storms
+  if (motion > 0.30) {
+    return 'iss-lightning';
+  }
+
+  // 3. Low-saturation hazy / diffuse gray-white -> Aerosols, Smoke, Dust
+  if (saturation < 0.22 && brightness >= 0.20) {
+    return 'geos-aerosols';
+  }
+
+  // 4. Hue-based classification:
+  // Red / Orange / Crimson (0.0 to 0.12, or 0.88 to 1.0) -> Thermal / Wildfire / Infrared
+  if (hue < 0.12 || hue > 0.88) {
+    return 'thermal-fire';
+  }
+
+  // Green / Olive / Lime / Foliage (0.20 to 0.44) -> Vegetation / GEDI Forest Canopy
+  if (hue >= 0.20 && hue <= 0.44) {
+    return 'gedi-forest-height';
+  }
+
+  // Cyan / Azure / Deep Ocean Blue (0.46 to 0.72) -> Sea Surface Temperature & Ocean Currents
+  if (hue >= 0.46 && hue <= 0.72) {
+    return 'sst-currents';
+  }
+
+  // Purple / Violet / Solar Corona (0.73 to 0.87) -> Auroras & Solar Activity
+  if (hue > 0.72 && hue < 0.88) {
+    return 'aurora-solar';
+  }
+
+  return 'general-earth';
+}
 
 /**
  * Returns the matching Raaga Profile for a NASA dataset ID.

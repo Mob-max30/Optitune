@@ -15,6 +15,7 @@ import { adaptContractV1ToSfr } from '../extension/src/sfr/adapters/contract-v1'
 import { AutonomousAudioEngineAdapter } from '../extension/src/semantic/audio-profile-adapter';
 import { SascAudioEngineAdapter } from '../extension/src/sasc/sasc-audio-adapter';
 import { generateSascStructuredLegendHtml } from '../extension/src/sasc/sasc-legend';
+import { classifyVisualPhenomenon } from '../extension/src/audio/raagas';
 
 // DOM Elements
 const simulationCanvas = document.getElementById('simulationCanvas') as HTMLCanvasElement;
@@ -319,17 +320,7 @@ function analyzeCurrentFrame(now: number): void {
   // 2. Color & Hue Histogram
   const colorMetrics = extractColorMetrics(currentBuffer, { ignoreDark });
 
-  // 3. Legend-Calibrated Measurement
-  const dataValue = calculateAverageLegendValue(currentBuffer, preparedLut);
-
-  // 4. Regional Grid (4x8)
-  const regions = calculateRegionGrid(
-    currentBuffer,
-    { rows: 4, cols: 8, width: 32, height: 32, ignoreDark },
-    preparedLut
-  );
-
-  // 5. Motion Delta & Event Bursts
+  // 3. Motion Delta & Event Bursts
   const motionRes = calculateMotionAndEvents(
     currentBuffer,
     previousBuffer,
@@ -341,6 +332,27 @@ function analyzeCurrentFrame(now: number): void {
       eventThreshold: activePreset.events?.threshold ?? 0.20,
       baselineAlpha: activePreset.events?.baselineAlpha ?? 0.05
     }
+  );
+
+  // 4. Legend-Calibrated Measurement (requiring 20% coverage)
+  let dataValue = calculateAverageLegendValue(currentBuffer, preparedLut, 0.20);
+
+  // Dynamic scientific proxy:
+  // When legend is not calibrated, dynamically compute from live visual energy and motion
+  if (dataValue === null) {
+    dataValue = round3(clamp(
+      brightness * 0.45 +
+      colorMetrics.saturation * 0.30 +
+      (Math.abs(colorMetrics.hue - 0.5) * 0.25) +
+      (motionRes.motion * 0.30)
+    ));
+  }
+
+  // 5. Regional Grid (4x8)
+  const regions = calculateRegionGrid(
+    currentBuffer,
+    { rows: 4, cols: 8, width: 32, height: 32, ignoreDark },
+    preparedLut
   );
 
   // Cache buffer for next motion delta

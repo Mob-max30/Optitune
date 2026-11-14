@@ -13,6 +13,7 @@ import { clamp, round3 } from '../analysis/normalize';
 import { adaptContractV1ToSfr } from '../sfr/adapters/contract-v1';
 import { AutonomousAudioEngineAdapter } from '../semantic/audio-profile-adapter';
 import { SascAudioEngineAdapter } from '../sasc/sasc-audio-adapter';
+import { classifyVisualPhenomenon } from '../audio/raagas';
 import type { ScientificFeatureFrame } from '../sfr/types';
 import type { MappingProfile } from '../semantic/types';
 
@@ -404,7 +405,7 @@ class EarthJukeboxController {
 
   private runDirectAnalysis(frame: CapturedFrame, seeked: boolean): void {
     const currentData = new Uint8ClampedArray(frame.buffer);
-    const preset = this.activePreset;
+    let preset = this.activePreset;
     const ignoreDark = preset?.ignoreDark ?? 0.05;
 
     if (!this.directLut && preset?.legend) {
@@ -413,19 +414,6 @@ class EarthJukeboxController {
 
     const brightness = calculateAverageLuminance(currentData, { ignoreDark });
     const colorMetrics = extractColorMetrics(currentData, { ignoreDark });
-    let dataValue = calculateAverageLegendValue(currentData, this.directLut);
-
-    // If unlisted or general visualization, dynamically map live brightness, saturation, and hue to data value
-    if (dataValue === null && (!preset.legend || preset.id === 'general-earth')) {
-      dataValue = round3(clamp(brightness * 0.65 + colorMetrics.saturation * 0.35));
-    }
-
-    const regions = calculateRegionGrid(
-      currentData,
-      { rows: preset?.grid?.[0] ?? 4, cols: preset?.grid?.[1] ?? 8, width: frame.width, height: frame.height, ignoreDark },
-      this.directLut
-    );
-
     const motionResult = calculateMotionAndEvents(
       currentData,
       seeked ? null : this.directPreviousFrame,
@@ -437,6 +425,45 @@ class EarthJukeboxController {
         eventThreshold: preset?.events?.threshold ?? 0.20,
         baselineAlpha: preset?.events?.baselineAlpha ?? 0.05
       }
+    );
+
+    // Require 20% match coverage: prevents mismatched legends (e.g. blue ocean on GEDI legend) from returning 0.04m!
+    let dataValue = calculateAverageLegendValue(currentData, this.directLut, 0.20);
+
+    // Autonomous visual signature recognition:
+    // If no manual preset override AND (dataValue is null OR current preset is general-earth),
+    // autonomously classify the phenomenon from live hue, saturation, luminance, and motion!
+    if (!this.manualPresetOverride && (dataValue === null || preset.id === 'general-earth')) {
+      const detectedId = classifyVisualPhenomenon(
+        colorMetrics.hue,
+        colorMetrics.saturation,
+        brightness,
+        motionResult.motion
+      );
+      if (detectedId !== preset.id && PRESETS[detectedId]) {
+        this.applyPreset(PRESETS[detectedId]);
+        preset = this.activePreset;
+        if (preset.legend) {
+          dataValue = calculateAverageLegendValue(currentData, this.directLut, 0.20);
+        }
+      }
+    }
+
+    // Dynamic scientific proxy:
+    // When legend is not calibrated, dynamically compute from live visual energy and motion
+    if (dataValue === null) {
+      dataValue = round3(clamp(
+        brightness * 0.45 +
+        colorMetrics.saturation * 0.30 +
+        (Math.abs(colorMetrics.hue - 0.5) * 0.25) +
+        (motionResult.motion * 0.30)
+      ));
+    }
+
+    const regions = calculateRegionGrid(
+      currentData,
+      { rows: preset?.grid?.[0] ?? 4, cols: preset?.grid?.[1] ?? 8, width: frame.width, height: frame.height, ignoreDark },
+      this.directLut
     );
 
     const profile = calculateSpatialProfiles(currentData, frame.width, frame.height, 32);

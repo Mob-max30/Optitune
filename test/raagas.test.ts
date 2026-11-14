@@ -5,7 +5,8 @@ import {
   TAALA_PROFILES,
   getRaagaForDataset,
   getTaalaForDataset,
-  quantizeToRaagaSwara
+  quantizeToRaagaSwara,
+  classifyVisualPhenomenon
 } from '../extension/src/audio/raagas';
 import { TanpuraVoice } from '../extension/src/audio/synths/tanpura-voice';
 import { TablaVoice } from '../extension/src/audio/synths/tabla-voice';
@@ -155,6 +156,70 @@ describe('Indian Classical Raagas & Taalas Sonification Engine', () => {
     expect(tel.raagaName).toBe('Raaga Bhoopali');
     expect(tel.taalaName).toBe('Keharwa Taal');
     expect(tel.currentSwara).toBeDefined();
+
+    engine.destroy();
+  });
+
+  it('autonomously classifies visual phenomena from color hue, saturation, and luminance', () => {
+    // 1. Cyan/Blue ocean (Hue: 195° -> 0.54) -> Sea Surface Temperature & Ocean Currents
+    expect(classifyVisualPhenomenon(0.54, 0.60, 0.40, 0.0)).toBe('sst-currents');
+
+    // 2. Green forest canopy (Hue: 120° -> 0.33) -> GEDI Forest Height
+    expect(classifyVisualPhenomenon(0.33, 0.70, 0.50, 0.0)).toBe('gedi-forest-height');
+
+    // 3. Fiery red/orange thermal hotspots (Hue: 15° -> 0.04) -> Thermal Wildfire
+    expect(classifyVisualPhenomenon(0.04, 0.85, 0.60, 0.05)).toBe('thermal-fire');
+
+    // 4. Dark nocturnal landscape with city lights (Brightness: 0.15, Saturation: 0.20) -> Night Lights
+    expect(classifyVisualPhenomenon(0.15, 0.20, 0.15, 0.0)).toBe('night-lights');
+
+    // 5. Diffuse hazy aerosols / dust plume (Saturation: 0.12, Brightness: 0.45) -> Aerosols
+    expect(classifyVisualPhenomenon(0.10, 0.12, 0.45, 0.02)).toBe('geos-aerosols');
+
+    // 6. Violet / Aurora ribbons (Hue: 280° -> 0.78) -> Aurora Solar
+    expect(classifyVisualPhenomenon(0.78, 0.75, 0.55, 0.0)).toBe('aurora-solar');
+
+    // 7. Sudden high-motion flash / lightning burst (Motion: 0.35) -> Lightning
+    expect(classifyVisualPhenomenon(0.50, 0.30, 0.80, 0.35)).toBe('iss-lightning');
+  });
+
+  it('guarantees different videos produce distinct Raagas, Taalas, and Root Sa keys', async () => {
+    const engine = new EarthJukeboxAudioEngine({ mode: 'raaga' });
+    await engine.start();
+
+    // Blue Ocean Video (Hue 0.54 -> F# root, Raaga Megh Malhar, Rupak Taal)
+    const oceanFrame: EjbFramePayload = {
+      v: 1, t: 1.0, frameIndex: 1, vizId: 'sst-currents',
+      metrics: {
+        brightness: 0.4, dominantColor: { r: 0.1, g: 0.5, b: 0.9 },
+        hue: 0.54, saturation: 0.7, dataValue: 0.4, motion: 0.02,
+        regions: { rows: 4, cols: 8, brightness: new Array(32).fill(0.4), dataValue: new Array(32).fill(0.4) }
+      },
+      flags: { seeked: false, scene_cut: false }
+    };
+    engine.processFrame(oceanFrame);
+    const oceanTel = engine.getTelemetry();
+
+    // Fiery Wildfire Video (Hue 0.04 -> C root, Raaga Marwa, Ektaal)
+    const fireFrame: EjbFramePayload = {
+      v: 1, t: 1.0, frameIndex: 1, vizId: 'thermal-fire',
+      metrics: {
+        brightness: 0.6, dominantColor: { r: 0.9, g: 0.2, b: 0.1 },
+        hue: 0.04, saturation: 0.85, dataValue: 0.6, motion: 0.08,
+        regions: { rows: 4, cols: 8, brightness: new Array(32).fill(0.6), dataValue: new Array(32).fill(0.6) }
+      },
+      flags: { seeked: false, scene_cut: false }
+    };
+    engine.processFrame(fireFrame);
+    const fireTel = engine.getTelemetry();
+
+    // Verify complete sonic distinction!
+    expect(oceanTel.raagaName).toBe('Raaga Megh Malhar');
+    expect(fireTel.raagaName).toBe('Raaga Marwa');
+    expect(oceanTel.taalaName).toBe('Rupak Taal');
+    expect(fireTel.taalaName).toBe('Ektaal');
+    expect(oceanTel.raagaName).not.toBe(fireTel.raagaName);
+    expect(oceanTel.taalaName).not.toBe(fireTel.taalaName);
 
     engine.destroy();
   });
