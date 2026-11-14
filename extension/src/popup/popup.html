@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Earth Jukebox</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container" role="region" aria-label="Earth Jukebox Controls">
+    <!-- Header -->
+    <header class="header">
+      <div class="brand">
+        <div class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
+            <path d="M2 12h20" />
+            <path d="M16 12a4 4 0 0 1-8 0" stroke="#38BDF8" stroke-width="2.5" />
+          </svg>
+        </div>
+        <div>
+          <h1 class="title">Earth Jukebox</h1>
+          <p class="subtitle">NASA EIC Sonification</p>
+        </div>
+      </div>
+      <span id="statusBadge" class="badge badge-inactive">Inactive</span>
+    </header>
+
+    <!-- Screen Reader Status Announcer -->
+    <div id="srAnnouncer" class="sr-only" aria-live="polite" aria-atomic="true">
+      Earth Jukebox ready.
+    </div>
+
+    <!-- Main Toggle Action -->
+    <section class="action-section">
+      <button id="toggleBtn" class="btn btn-primary" aria-label="Toggle Sonification" aria-pressed="false">
+        <span class="btn-icon" aria-hidden="true">▶</span>
+        <span id="toggleBtnText">Start Sonifying</span>
+      </button>
+      <div class="shortcut-hint" aria-hidden="true">
+        Shortcut: <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd>
+      </div>
+    </section>
+
+    <!-- Preset Selection -->
+    <section class="section">
+      <label for="presetSelect" class="section-label">
+        NASA Visualization Preset
+      </label>
+      <select id="presetSelect" class="select" aria-label="Select NASA Visualization Preset">
+        <option value="" disabled>Detecting video...</option>
+      </select>
+      <p id="presetDescription" class="description-text">
+        Loading preset details...
+      </p>
+    </section>
+
+    <!-- Live Scientific Metrics Monitor -->
+    <section class="section metrics-section">
+      <h2 class="section-label">Live Scientific Metrics</h2>
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <span class="metric-name">Luminance</span>
+          <span id="metricLuma" class="metric-val">0.00</span>
+          <div class="meter-bar"><div id="meterLumaBar" class="meter-fill" style="width: 0%;"></div></div>
+        </div>
+        <div class="metric-card">
+          <span class="metric-name">Physical Value</span>
+          <span id="metricDataValue" class="metric-val" title="Calibrated measurement">--</span>
+          <span id="metricUnit" class="metric-unit">calibrated</span>
+        </div>
+        <div class="metric-card">
+          <span class="metric-name">Dominant Color</span>
+          <div class="color-preview-container">
+            <div id="colorSwatch" class="color-swatch" aria-label="Color Preview"></div>
+            <span id="metricHue" class="metric-val">Hue: 0°</span>
+          </div>
+        </div>
+        <div class="metric-card">
+          <span class="metric-name">Motion Delta</span>
+          <span id="metricMotion" class="metric-val">0.00</span>
+          <div class="meter-bar"><div id="meterMotionBar" class="meter-fill" style="width: 0%;"></div></div>
+        </div>
+      </div>
+      <div class="sync-status">
+        <span>Video Time: <strong id="videoTime">0.00s</strong></span>
+        <span>Frame: <strong id="frameIdx">0</strong></span>
+      </div>
+    </section>
+
+    <!-- Sound Legend (Accessibility Guide) -->
+    <section class="section sound-legend-section">
+      <details>
+        <summary class="legend-summary">
+          <span>🎧 Sound Mapping Legend</span>
+        </summary>
+        <div id="soundLegendText" class="legend-content">
+          Higher pitch = higher canopy / elevated temperature.<br>
+          Stereo panning = geographic location.<br>
+          Flashes / lightning = percussive acoustic accents.
+        </div>
+      </details>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <span>NASA Space Apps 2026</span>
+      <span>Local client-side pipeline</span>
+    </footer>
+  </div>
+  <script type="module" src="popup.ts"></script>
+</body>
+</html>

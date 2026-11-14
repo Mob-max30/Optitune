@@ -1,0 +1,39 @@
+{
+  "name": "earth-jukebox",
+  "version": "1.0.0",
+  "description": "Earth Jukebox — Real-time Visual Analysis & Sonification Pipeline for NASA EIC & SVS Visualizations",
+  "type": "module",
+  "scripts": {
+    "dev": "vite build --watch -c extension/vite.config.ts",
+    "build:extension": "node scripts/build-extension.js",
+    "build:demo": "vite build -c demo-page/vite.config.ts",
+    "build": "npm run build:extension && npm run build:demo",
+    "test": "vitest run",
+    "package": "node scripts/package.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ujwalamar314-cell/optitone.git"
+  },
+  "keywords": [
+    "nasa",
+    "space-apps-2026",
+    "earth-jukebox",
+    "sonification",
+    "accessibility",
+    "chrome-extension",
+    "web-audio"
+  ],
+  "author": "Ujwal A & Pranav K",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/archiver": "^6.0.4",
+    "@types/chrome": "^0.3.7",
+    "@types/node": "^26.6.6",
+    "archiver": "^7.0.1",
+    "happy-dom": "^21.0.4",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0"
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "manifest_version": 3,
+  "name": "Earth Jukebox",
+  "version": "1.0.0",
+  "description": "Hear NASA Earth visualizations: real-time algorithmic sonification of EIC and SVS videos for blind, low-vision, and curious listeners.",
+  "permissions": [
+    "activeTab",
+    "tabCapture",
+    "offscreen",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://*.earth.gov/*",
+    "https://earth.gov/*",
+    "https://svs.gsfc.nasa.gov/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Earth Jukebox"
+  },
+  "background": {
+    "service_worker": "service-worker.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.earth.gov/*",
+        "https://earth.gov/*",
+        "https://svs.gsfc.nasa.gov/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ],
+  "commands": {
+    "toggle-sonification": {
+      "suggested_key": {
+        "default": "Alt+Shift+S",
+        "mac": "Alt+Shift+S"
+      },
+      "description": "Toggle Earth Jukebox Sonification"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "analyzer.worker.js",
+        "icons/*"
+      ],
+      "matches": [
+        "https://*.earth.gov/*",
+        "https://earth.gov/*",
+        "https://svs.gsfc.nasa.gov/*"
+      ]
+    }
+  ]
+}
