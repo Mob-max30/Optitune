@@ -129,8 +129,9 @@ function renderMetrics(p: EjbFramePayload): void {
   meterLumaBar.style.width = `${Math.round(p.metrics.brightness * 100)}%`;
 
   if (p.metrics.dataValue !== null && p.metrics.dataValue !== undefined) {
-    if (currentPreset?.legend && currentPreset.legend.min !== undefined && currentPreset.legend.max !== undefined) {
-      const realVal = currentPreset.legend.min + p.metrics.dataValue * (currentPreset.legend.max - currentPreset.legend.min);
+    const preset = (p.vizId && PRESETS[p.vizId]) || currentPreset;
+    if (preset?.legend && preset.legend.min !== undefined && preset.legend.max !== undefined) {
+      const realVal = preset.legend.min + p.metrics.dataValue * (preset.legend.max - preset.legend.min);
       metricDataValue.textContent = realVal.toFixed(1);
     } else {
       metricDataValue.textContent = p.metrics.dataValue.toFixed(2);
