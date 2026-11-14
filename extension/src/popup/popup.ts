@@ -1,6 +1,8 @@
 import type { PresetConfig, EjbFramePayload } from '../contract/types';
 import type { MappingProfile } from '../semantic/types';
+import type { AuditorySceneProfile } from '../sasc/scene-profile';
 import { generateStructuredLegendHtml } from '../accessibility/auditory-legend';
+import { generateSascStructuredLegendHtml } from '../sasc/sasc-legend';
 import { PRESETS } from '../presets';
 
 let activeTabId: number | null = null;
@@ -115,6 +117,13 @@ function updateUiState(
   }
 }
 
+function renderSascScene(scene: AuditorySceneProfile | null | undefined): void {
+  if (!scene || scene.isSilent || scene.activeStreams.length === 0) return;
+  if (currentProfileId === scene.sceneId) return;
+  currentProfileId = scene.sceneId;
+  soundLegendText.innerHTML = generateSascStructuredLegendHtml(scene);
+}
+
 function renderMappingProfile(profile: MappingProfile | null | undefined): void {
   if (!profile || profile.isSilent || profile.activeMappings.length === 0) return;
   if (currentProfileId === profile.profileId) return;
@@ -172,7 +181,9 @@ function fetchStatus(): void {
       res.activePreset
     );
 
-    if (res.mappingProfile) {
+    if (res.sascScene) {
+      renderSascScene(res.sascScene);
+    } else if (res.mappingProfile) {
       renderMappingProfile(res.mappingProfile);
     }
 
@@ -246,7 +257,8 @@ function setupEvents(): void {
   chrome.runtime.onMessage.addListener((msg) => {
     if (msg.type === 'POPUP_METRIC_UPDATE') {
       if (msg.payload) renderMetrics(msg.payload);
-      if (msg.mappingProfile) renderMappingProfile(msg.mappingProfile);
+      if (msg.sascScene) renderSascScene(msg.sascScene);
+      else if (msg.mappingProfile) renderMappingProfile(msg.mappingProfile);
     }
   });
 }

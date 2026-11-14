@@ -11,6 +11,7 @@ class MockAudioParam {
   setTargetAtTime(v: number) { this.value = v; }
   linearRampToValueAtTime(v: number) { this.value = v; }
   exponentialRampToValueAtTime(v: number) { this.value = v; }
+  cancelScheduledValues(_v?: number) {}
 }
 
 class MockAudioNode {

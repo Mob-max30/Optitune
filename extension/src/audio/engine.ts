@@ -25,6 +25,7 @@ import { mapContinuousFrequency, quantizeToScale } from './scales';
 import { FrameMetricsSmoother } from './smoother';
 import { calculateSpatialDistribution } from './spatial';
 import { LeadVoice } from './synths/base-voice';
+import { BassVoice } from './synths/bass-voice';
 import { PadVoice } from './synths/pad-voice';
 import { PercussionVoice } from './synths/percussion';
 import { TextureNoiseVoice } from './synths/noise-voice';
@@ -38,6 +39,7 @@ export class EarthJukeboxAudioEngine {
 
   // Synthesizer voices
   private leadVoice: LeadVoice | null = null;
+  private bassVoice: BassVoice | null = null;
   private padVoice: PadVoice | null = null;
   private percussionVoice: PercussionVoice | null = null;
   private noiseVoice: TextureNoiseVoice | null = null;
@@ -298,8 +300,26 @@ export class EarthJukeboxAudioEngine {
       smoothedCutoff,
       2.0,
       0.05,
-      bypassSmoothing
+      bypassSmoothing,
+      this.currentMode === 'artistic'
     );
+
+    // 6b. Update Sub-Bass Anchor Voice (35 Hz - 150 Hz physical foundation)
+    if (this.bassVoice) {
+      const bassFreq = mapContinuousFrequency(
+        primaryMetricValue,
+        Math.max(35, this.activeProfile.baseFrequency * 0.5),
+        Math.min(150, this.activeProfile.baseFrequency),
+        'log'
+      );
+      const bassGain = Math.max(0.12, Math.min(0.50, 0.20 + metrics.brightness * 0.28));
+      const bassCutoff = 110 + metrics.motion * 250;
+      this.bassVoice.update(bassFreq, bassGain, bassCutoff, 0.08);
+
+      if (metrics.motion > 0.15 || (events && events.length > 0)) {
+        this.bassVoice.pulse(bassFreq, 0.42, 0.3);
+      }
+    }
 
     // 7. Update Regional Ambient Pad (4 latitudinal rows)
     const padPresence = 0.1 + metrics.brightness * 0.4;
@@ -375,6 +395,9 @@ export class EarthJukeboxAudioEngine {
     // Instantiate all voice nodes feeding into compressor
     this.leadVoice = new LeadVoice(this.ctx, this.compressor);
     this.leadVoice.start();
+
+    this.bassVoice = new BassVoice(this.ctx, this.compressor);
+    this.bassVoice.start();
 
     this.padVoice = new PadVoice(this.ctx, this.compressor);
     this.padVoice.start();
@@ -452,6 +475,7 @@ export class EarthJukeboxAudioEngine {
   destroy(): void {
     this.stop();
     this.leadVoice?.dispose();
+    this.bassVoice?.dispose();
     this.padVoice?.dispose();
     this.noiseVoice?.dispose();
     this.scannerVoice?.dispose();

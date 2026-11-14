@@ -16,6 +16,7 @@ export class LeadVoice {
   private pannerNode: StereoPannerNode | null = null;
   private outputNode: AudioNode;
   private isStarted = false;
+  private lastNoteFreq = 0;
 
   constructor(ctx: AudioContext, destination: AudioNode) {
     this.ctx = ctx;
@@ -83,13 +84,28 @@ export class LeadVoice {
     cutoff: number,
     resonance = 2.0,
     timeConstant = 0.05,
-    bypassSmoothing = false
+    bypassSmoothing = false,
+    quantizeMode = false
   ): void {
     const now = this.ctx.currentTime;
     const safeFreq = Math.max(20, Math.min(10000, frequency));
     const safeGain = Math.max(0, Math.min(1.0, gain));
     const safePan = Math.max(-1.0, Math.min(1.0, pan));
     const safeCutoff = Math.max(100, Math.min(18000, cutoff));
+
+    if (quantizeMode && Math.abs(safeFreq - this.lastNoteFreq) > 3) {
+      this.lastNoteFreq = safeFreq;
+      // Articulate new musical note with snappy attack & warm decay
+      try {
+        this.gainNode.gain.cancelScheduledValues(now);
+        this.gainNode.gain.setValueAtTime(0.04, now);
+        this.gainNode.gain.linearRampToValueAtTime(safeGain, now + 0.025);
+        this.gainNode.gain.setTargetAtTime(safeGain * 0.85, now + 0.04, 0.15);
+      } catch {
+        // Fallback for mocks
+        this.gainNode.gain.setValueAtTime(safeGain, now);
+      }
+    }
 
     if (bypassSmoothing) {
       this.osc1.frequency.setValueAtTime(safeFreq, now);

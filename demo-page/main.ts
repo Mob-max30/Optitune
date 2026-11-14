@@ -13,7 +13,8 @@ import { clamp, round3 } from '../extension/src/analysis/normalize';
 import { EarthJukeboxAudioEngine, type SonificationMode } from '../extension/src/audio';
 import { adaptContractV1ToSfr } from '../extension/src/sfr/adapters/contract-v1';
 import { AutonomousAudioEngineAdapter } from '../extension/src/semantic/audio-profile-adapter';
-import { generateStructuredLegendHtml } from '../extension/src/accessibility/auditory-legend';
+import { SascAudioEngineAdapter } from '../extension/src/sasc/sasc-audio-adapter';
+import { generateSascStructuredLegendHtml } from '../extension/src/sasc/sasc-legend';
 
 // DOM Elements
 const simulationCanvas = document.getElementById('simulationCanvas') as HTMLCanvasElement;
@@ -76,10 +77,11 @@ const cellBaselines = new Float32Array(64).fill(0.1);
 
 // Earth Jukebox Sonification Audio Engine (Pranav K)
 const audioEngine = new EarthJukeboxAudioEngine({
-  mode: 'scientific',
+  mode: 'artistic',
   masterVolume: 0.7
 });
 const autonomousAdapter = new AutonomousAudioEngineAdapter(audioEngine);
+const sascAdapter = new SascAudioEngineAdapter(audioEngine);
 let lastProfileId: string | null = null;
 
 // Initialize
@@ -120,6 +122,7 @@ function updatePresetInfo(): void {
   preparedLut = prepareLegendLUT(activePreset.legend);
   audioEngine.setPreset(activePreset.id);
   autonomousAdapter.resetProfile();
+  sascAdapter.resetScene();
   lastProfileId = null;
   cellBaselines.fill(0.1);
   previousBuffer = null;
@@ -375,11 +378,11 @@ function analyzeCurrentFrame(now: number): void {
 
   const sfrFrame = adaptContractV1ToSfr(payload);
   if (isPlaying) {
-    autonomousAdapter.processScientificFrame(sfrFrame);
-    const semProfile = autonomousAdapter.getActiveProfile();
-    if (semProfile && semProfile.profileId !== lastProfileId) {
-      lastProfileId = semProfile.profileId;
-      demoSoundLegend.innerHTML = generateStructuredLegendHtml(semProfile);
+    sascAdapter.processScientificFrame(sfrFrame);
+    const sceneProfile = sascAdapter.getActiveSceneProfile();
+    if (sceneProfile && sceneProfile.sceneId !== lastProfileId) {
+      lastProfileId = sceneProfile.sceneId;
+      demoSoundLegend.innerHTML = generateSascStructuredLegendHtml(sceneProfile);
     }
   }
 

@@ -12,6 +12,7 @@ import { EarthJukeboxAudioEngine, type SonificationMode } from '../audio';
 import { clamp, round3 } from '../analysis/normalize';
 import { adaptContractV1ToSfr } from '../sfr/adapters/contract-v1';
 import { AutonomousAudioEngineAdapter } from '../semantic/audio-profile-adapter';
+import { SascAudioEngineAdapter } from '../sasc/sasc-audio-adapter';
 import type { ScientificFeatureFrame } from '../sfr/types';
 import type { MappingProfile } from '../semantic/types';
 
@@ -27,8 +28,9 @@ class EarthJukeboxController {
   private emitter = new EjbEmitter();
   private mediaFinder: MediaFinder;
   private capturePipeline: FrameCapturePipeline | null = null;
-  private audioEngine = new EarthJukeboxAudioEngine();
+  private audioEngine = new EarthJukeboxAudioEngine({ mode: 'artistic' });
   private autonomousAdapter = new AutonomousAudioEngineAdapter(this.audioEngine);
+  private sascAdapter = new SascAudioEngineAdapter(this.audioEngine);
 
   // Analysis state (runs directly in-thread on 32x32 buffer, taking <0.08ms per tick with 0 CSP issues)
   private directPreviousFrame: Uint8ClampedArray | null = null;
@@ -68,6 +70,9 @@ class EarthJukeboxController {
       }
       if (isSonificationMode(items.activeMode)) {
         this.audioEngine.setMode(items.activeMode);
+      } else {
+        this.audioEngine.setMode('artistic');
+        chrome.storage.local.set({ activeMode: 'artistic' });
       }
 
       // If a video is already playing right now on page load, start sonification immediately
@@ -146,6 +151,7 @@ class EarthJukeboxController {
     this.directPreviousFrame = null;
     this.audioEngine.setPreset(preset.id);
     this.autonomousAdapter.resetProfile();
+    this.sascAdapter.resetScene();
     this.lastMappingProfile = null;
 
     if (this.capturePipeline) {
@@ -205,7 +211,8 @@ class EarthJukeboxController {
             mode: telemetry.mode,
             telemetry,
             lastPayload: this.lastPayload,
-            mappingProfile: profile
+            mappingProfile: profile,
+            sascScene: this.sascAdapter.getActiveSceneProfile()
           });
           return true;
         }
@@ -471,9 +478,9 @@ class EarthJukeboxController {
     // 2. Dispatch custom DOM event on window (Preserving Contract v1 compatibility)
     this.emitter.emitFrame(payload);
 
-    // 3. Drive Web Audio synthesis through Autonomous Semantic Adapter
+    // 3. Drive Web Audio synthesis through SASC (Scientific Auditory Scene Compiler)
     if (this.isSonifying) {
-      this.autonomousAdapter.processScientificFrame(sfrFrame);
+      this.sascAdapter.processScientificFrame(sfrFrame);
       this.lastMappingProfile = this.autonomousAdapter.getActiveProfile();
     }
 
@@ -482,7 +489,8 @@ class EarthJukeboxController {
       chrome.runtime.sendMessage({
         type: 'POPUP_METRIC_UPDATE',
         payload,
-        mappingProfile: this.lastMappingProfile
+        mappingProfile: this.lastMappingProfile,
+        sascScene: this.sascAdapter.getActiveSceneProfile()
       }).catch(() => {});
     } catch {
       // Popup might be closed
