@@ -1,4 +1,4 @@
-import type { PresetConfig } from '../contract/types';
+import type { PresetConfig, EjbFramePayload } from '../contract/types';
 import presetsData from '../presets/visualizations.json';
 
 const PRESETS = presetsData as Record<string, PresetConfig>;
@@ -100,6 +100,31 @@ function updateUiState(isActive: boolean, hasMedia: boolean, preset: PresetConfi
   }
 }
 
+function renderMetrics(p: EjbFramePayload): void {
+  if (!p || !p.metrics) return;
+
+  metricLuma.textContent = p.metrics.brightness.toFixed(2);
+  meterLumaBar.style.width = `${Math.round(p.metrics.brightness * 100)}%`;
+
+  if (p.metrics.dataValue !== null && p.metrics.dataValue !== undefined) {
+    metricDataValue.textContent = p.metrics.dataValue.toFixed(2);
+  } else {
+    metricDataValue.textContent = `${(p.metrics.brightness * 100).toFixed(0)}% (approx)`;
+  }
+
+  metricHue.textContent = `Hue: ${Math.round(p.metrics.hue * 360)}°`;
+  const dc = p.metrics.dominantColor;
+  if (dc) {
+    colorSwatch.style.backgroundColor = `rgb(${Math.round(dc.r * 255)}, ${Math.round(dc.g * 255)}, ${Math.round(dc.b * 255)})`;
+  }
+
+  metricMotion.textContent = p.metrics.motion.toFixed(2);
+  meterMotionBar.style.width = `${Math.round(p.metrics.motion * 100)}%`;
+
+  videoTime.textContent = `${p.t.toFixed(2)}s`;
+  frameIdx.textContent = String(p.frameIndex);
+}
+
 function fetchStatus(): void {
   if (!activeTabId) return;
 
@@ -117,7 +142,9 @@ function fetchStatus(): void {
       modeSelect.value = res.mode;
     }
 
-    if (res.t !== undefined) {
+    if (res.lastPayload) {
+      renderMetrics(res.lastPayload);
+    } else if (res.t !== undefined) {
       videoTime.textContent = `${res.t.toFixed(2)}s`;
       frameIdx.textContent = String(res.frameIndex ?? 0);
     }
@@ -174,25 +201,7 @@ function setupEvents(): void {
   // Listen for broadcast frame updates forwarded to extension
   chrome.runtime.onMessage.addListener((msg) => {
     if (msg.type === 'POPUP_METRIC_UPDATE' && msg.payload) {
-      const p = msg.payload;
-      metricLuma.textContent = p.metrics.brightness.toFixed(2);
-      meterLumaBar.style.width = `${Math.round(p.metrics.brightness * 100)}%`;
-
-      if (p.metrics.dataValue !== null) {
-        metricDataValue.textContent = p.metrics.dataValue.toFixed(2);
-      } else {
-        metricDataValue.textContent = 'approx';
-      }
-
-      metricHue.textContent = `Hue: ${Math.round(p.metrics.hue * 360)}°`;
-      const dc = p.metrics.dominantColor;
-      colorSwatch.style.backgroundColor = `rgb(${Math.round(dc.r * 255)}, ${Math.round(dc.g * 255)}, ${Math.round(dc.b * 255)})`;
-
-      metricMotion.textContent = p.metrics.motion.toFixed(2);
-      meterMotionBar.style.width = `${Math.round(p.metrics.motion * 100)}%`;
-
-      videoTime.textContent = `${p.t.toFixed(2)}s`;
-      frameIdx.textContent = String(p.frameIndex);
+      renderMetrics(msg.payload);
     }
   });
 }

@@ -113,11 +113,11 @@ export class FrameCapturePipeline {
     let sourceHeight = 0;
 
     if (media instanceof HTMLVideoElement) {
-      sourceWidth = media.videoWidth || media.clientWidth || 640;
-      sourceHeight = media.videoHeight || media.clientHeight || 360;
+      sourceWidth = media.videoWidth > 0 ? media.videoWidth : (media.clientWidth || 640);
+      sourceHeight = media.videoHeight > 0 ? media.videoHeight : (media.clientHeight || 360);
     } else {
-      sourceWidth = media.width || media.clientWidth || 640;
-      sourceHeight = media.height || media.clientHeight || 360;
+      sourceWidth = media.width > 0 ? media.width : (media.clientWidth || 640);
+      sourceHeight = media.height > 0 ? media.height : (media.clientHeight || 360);
     }
 
     if (sourceWidth === 0 || sourceHeight === 0) return;
