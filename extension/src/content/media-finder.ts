@@ -16,7 +16,40 @@ export class MediaFinder {
     this.callbacks = callbacks;
   }
 
+  private handleGlobalPlay = (e: Event): void => {
+    const target = e.target;
+    if (target instanceof HTMLVideoElement) {
+      if (this.activeMedia !== target) {
+        this.detachMedia();
+        this.attachMedia(target);
+      } else {
+        this.callbacks.onStateChange('playing', target.currentTime);
+      }
+    }
+  };
+
+  private handleGlobalPause = (e: Event): void => {
+    const target = e.target;
+    if (target instanceof HTMLVideoElement && this.activeMedia === target) {
+      this.callbacks.onStateChange('paused', target.currentTime);
+    }
+  };
+
+  private handleGlobalSeeked = (e: Event): void => {
+    const target = e.target;
+    if (target instanceof HTMLVideoElement && this.activeMedia === target) {
+      this.callbacks.onStateChange('seeked', target.currentTime);
+    }
+  };
+
   start(): void {
+    // Intercept media play/pause in capture phase across all videos on the page for instant auto-sonification
+    window.addEventListener('play', this.handleGlobalPlay, true);
+    window.addEventListener('playing', this.handleGlobalPlay, true);
+    window.addEventListener('pause', this.handleGlobalPause, true);
+    window.addEventListener('ended', this.handleGlobalPause, true);
+    window.addEventListener('seeked', this.handleGlobalSeeked, true);
+
     this.scan();
 
     this.observer = new MutationObserver(() => {
@@ -98,14 +131,21 @@ export class MediaFinder {
 
     if (media instanceof HTMLVideoElement) {
       const onPlay = () => this.callbacks.onStateChange('playing', media.currentTime);
+      const onPlaying = () => this.callbacks.onStateChange('playing', media.currentTime);
       const onPause = () => this.callbacks.onStateChange('paused', media.currentTime);
       const onSeeked = () => this.callbacks.onStateChange('seeked', media.currentTime);
       const onEnded = () => this.callbacks.onStateChange('ended', media.currentTime);
 
       this.addListener(media, 'play', onPlay);
+      this.addListener(media, 'playing', onPlaying);
       this.addListener(media, 'pause', onPause);
       this.addListener(media, 'seeked', onSeeked);
       this.addListener(media, 'ended', onEnded);
+
+      // If video is already actively playing when attached, trigger playing callback immediately
+      if (!media.paused && !media.ended) {
+        this.callbacks.onStateChange('playing', media.currentTime);
+      }
     }
   }
 
@@ -123,6 +163,12 @@ export class MediaFinder {
   }
 
   stop(): void {
+    window.removeEventListener('play', this.handleGlobalPlay, true);
+    window.removeEventListener('playing', this.handleGlobalPlay, true);
+    window.removeEventListener('pause', this.handleGlobalPause, true);
+    window.removeEventListener('ended', this.handleGlobalPause, true);
+    window.removeEventListener('seeked', this.handleGlobalSeeked, true);
+
     if (this.observer) {
       this.observer.disconnect();
       this.observer = null;

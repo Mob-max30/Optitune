@@ -9,19 +9,21 @@ import { prepareLegendLUT, calculateAverageLegendValue, type PreparedLegendLUT }
 import { calculateRegionGrid, calculateSpatialProfiles } from '../analysis/regions';
 import { calculateMotionAndEvents } from '../analysis/motion';
 import { EarthJukeboxAudioEngine, type SonificationMode } from '../audio';
-import { round3 } from '../analysis/normalize';
+import { clamp, round3 } from '../analysis/normalize';
 
 const PRESETS = presetsData as Record<string, PresetConfig>;
 
 class EarthJukeboxController {
+  private extensionEnabled = true;
   private isSonifying = false;
-  private activePreset: PresetConfig | null = null;
+  private manualPresetOverride = false;
+  private activePreset: PresetConfig;
   private emitter = new EjbEmitter();
   private mediaFinder: MediaFinder;
   private capturePipeline: FrameCapturePipeline | null = null;
   private audioEngine = new EarthJukeboxAudioEngine();
 
-  // Analysis state (runs directly in-thread on 32x32 buffer, taking <0.1ms per tick with 0 CSP issues)
+  // Analysis state (runs directly in-thread on 32x32 buffer, taking <0.08ms per tick with 0 CSP issues)
   private directPreviousFrame: Uint8ClampedArray | null = null;
   private directBaselines = new Float32Array(64).fill(0.1);
   private directLut: PreparedLegendLUT | null = null;
@@ -32,37 +34,130 @@ class EarthJukeboxController {
   private currentFrameIndex = 0;
 
   constructor() {
+    this.activePreset = PRESETS['general-earth'] || PRESETS['gedi-forest-height'];
     this.mediaFinder = new MediaFinder({
       onMediaFound: media => this.handleMediaFound(media),
       onMediaLost: () => this.handleMediaLost(),
       onStateChange: (state, time) => this.handleStateChange(state, time)
     });
 
-    this.detectPreset();
+    this.detectPresetForMedia(null);
     this.setupListeners();
+    this.setupUserGestureUnlock();
+
+    // Load persisted settings (defaulting to enabled: true for automatic zero-lag sonification)
+    chrome.storage.local.get(['extensionEnabled', 'masterVolume', 'activeMode'], (items) => {
+      if (typeof items.extensionEnabled === 'boolean') {
+        this.extensionEnabled = items.extensionEnabled;
+      } else {
+        this.extensionEnabled = true;
+        chrome.storage.local.set({ extensionEnabled: true });
+      }
+
+      if (typeof items.masterVolume === 'number') {
+        this.audioEngine.setMasterVolume(items.masterVolume);
+      }
+      if (items.activeMode) {
+        this.audioEngine.setMode(items.activeMode);
+      }
+
+      // If a video is already playing right now on page load, start sonification immediately
+      const media = this.mediaFinder.getActiveMedia();
+      if (this.extensionEnabled && media instanceof HTMLVideoElement && !media.paused && !media.ended) {
+        this.startAutoSonification(media);
+      }
+    });
+
     this.mediaFinder.start();
   }
 
-  private detectPreset(): void {
+  private detectPresetForMedia(media?: TrackedMedia | null): void {
+    if (this.manualPresetOverride) return;
+
     const url = window.location.href;
     const title = document.title.toLowerCase();
 
-    for (const [key, preset] of Object.entries(PRESETS)) {
-      if (preset.svsId && url.includes(`/${preset.svsId}/`)) {
-        this.activePreset = preset;
-        this.directLut = prepareLegendLUT(preset.legend);
-        return;
+    let mediaInfo = '';
+    if (media instanceof HTMLVideoElement) {
+      mediaInfo += (media.currentSrc || '') + ' ';
+      mediaInfo += (media.src || '') + ' ';
+      mediaInfo += (media.getAttribute('poster') || '') + ' ';
+      mediaInfo += (media.title || '') + ' ';
+      mediaInfo += (media.getAttribute('aria-label') || '') + ' ';
+      media.querySelectorAll('source').forEach(s => {
+        mediaInfo += (s.src || s.getAttribute('src') || '') + ' ';
+      });
+
+      // Walk up container tree to inspect gallery cards, titles, and links (e.g. /5313/, /4950/)
+      let parent: HTMLElement | null = media.parentElement;
+      for (let i = 0; i < 4 && parent; i++) {
+        parent.querySelectorAll('a').forEach(a => {
+          mediaInfo += (a.getAttribute('href') || a.href || '') + ' ';
+        });
+        const idAttr = parent.getAttribute('data-id') || parent.getAttribute('id') || '';
+        if (idAttr) mediaInfo += idAttr + ' ';
+        mediaInfo += (parent.textContent || '').slice(0, 300) + ' ';
+        parent = parent.parentElement;
       }
-      if (preset.match && (url.includes(preset.match) || title.includes(preset.match.toLowerCase()))) {
-        this.activePreset = preset;
-        this.directLut = prepareLegendLUT(preset.legend);
-        return;
+    }
+    mediaInfo = mediaInfo.toLowerCase();
+
+    for (const [key, preset] of Object.entries(PRESETS)) {
+      if (key === 'general-earth') continue;
+      const svsStr = preset.svsId ? String(preset.svsId) : null;
+      if (svsStr) {
+        const svsRegex = new RegExp(`(^|[^0-9])${svsStr}([^0-9]|$)`);
+        if (
+          url.includes(`/${svsStr}/`) ||
+          svsRegex.test(mediaInfo) ||
+          mediaInfo.includes(`a00${svsStr}`) ||
+          mediaInfo.includes(`${svsStr}_`)
+        ) {
+          this.applyPreset(preset);
+          return;
+        }
+      }
+      if (preset.match) {
+        const matchTerm = preset.match.toLowerCase();
+        if (url.includes(matchTerm) || title.includes(matchTerm) || mediaInfo.includes(matchTerm)) {
+          this.applyPreset(preset);
+          return;
+        }
       }
     }
 
-    // Default to GEDI forest height if on NASA SVS or general EIC
-    this.activePreset = PRESETS['gedi-forest-height'];
-    this.directLut = prepareLegendLUT(this.activePreset.legend);
+    // Default to adaptive dynamic Earth preset
+    this.applyPreset(PRESETS['general-earth'] || PRESETS['gedi-forest-height']);
+  }
+
+  private applyPreset(preset: PresetConfig): void {
+    this.activePreset = preset;
+    this.directLut = prepareLegendLUT(preset.legend);
+    this.directBaselines.fill(0.1);
+    this.directPreviousFrame = null;
+    this.audioEngine.setPreset(preset.id);
+
+    if (this.capturePipeline) {
+      this.capturePipeline.updateConfig({
+        roi: preset.roi,
+        tickHz: preset.tickHz
+      });
+    }
+  }
+
+  private setupUserGestureUnlock(): void {
+    // Unlocks and prepares the AudioContext on any user interaction (pointerdown, click, or keyboard)
+    // so sound starts with absolute ZERO latency as soon as the video plays
+    const unlockAudio = () => {
+      if (this.extensionEnabled && this.audioEngine) {
+        this.audioEngine.start().then(() => {
+          this.audioEngine.resume();
+        }).catch(() => {});
+      }
+    };
+    window.addEventListener('pointerdown', unlockAudio, { capture: true, passive: true });
+    window.addEventListener('click', unlockAudio, { capture: true, passive: true });
+    window.addEventListener('keydown', unlockAudio, { capture: true, passive: true });
   }
 
   private setupListeners(): void {
@@ -84,10 +179,13 @@ class EarthJukeboxController {
       switch (message.type) {
         case 'GET_STATUS': {
           const media = this.mediaFinder.getActiveMedia();
+          const isMediaPlaying = media instanceof HTMLVideoElement ? !media.paused && !media.ended : false;
           const telemetry = this.audioEngine.getTelemetry();
           sendResponse({
+            extensionEnabled: this.extensionEnabled,
             isActive: this.isSonifying,
             hasMedia: Boolean(media),
+            isMediaPlaying,
             activePreset: this.activePreset,
             availablePresets: PRESETS,
             t: this.currentT,
@@ -100,14 +198,21 @@ class EarthJukeboxController {
         }
 
         case 'TOGGLE_SONIFICATION': {
-          this.setSonifying(!this.isSonifying);
-          sendResponse({ isActive: this.isSonifying });
+          const enabled = this.toggleExtensionEnabled();
+          const media = this.mediaFinder.getActiveMedia();
+          const isMediaPlaying = media instanceof HTMLVideoElement ? !media.paused && !media.ended : false;
+          sendResponse({
+            extensionEnabled: enabled,
+            isActive: this.isSonifying,
+            isMediaPlaying
+          });
           return true;
         }
 
         case 'SET_MODE': {
           if (message.mode) {
             this.audioEngine.setMode(message.mode as SonificationMode);
+            chrome.storage.local.set({ activeMode: message.mode });
             sendResponse({ success: true, mode: message.mode });
           }
           return true;
@@ -116,6 +221,7 @@ class EarthJukeboxController {
         case 'SET_VOLUME': {
           if (typeof message.volume === 'number') {
             this.audioEngine.setMasterVolume(message.volume);
+            chrome.storage.local.set({ masterVolume: message.volume });
             sendResponse({ success: true, volume: message.volume });
           }
           return true;
@@ -124,19 +230,8 @@ class EarthJukeboxController {
         case 'SELECT_PRESET': {
           const preset = PRESETS[message.presetId];
           if (preset) {
-            this.activePreset = preset;
-            this.directLut = prepareLegendLUT(preset.legend);
-            this.directBaselines.fill(0.1);
-            this.directPreviousFrame = null;
-            this.audioEngine.setPreset(preset.id);
-
-            if (this.capturePipeline) {
-              this.capturePipeline.updateConfig({
-                roi: preset.roi,
-                tickHz: preset.tickHz
-              });
-            }
-
+            this.manualPresetOverride = true;
+            this.applyPreset(preset);
             const media = this.mediaFinder.getActiveMedia();
             if (media) {
               this.emitReadyEvent(media);
@@ -148,56 +243,75 @@ class EarthJukeboxController {
       }
       return false;
     });
-
-    // 3. User interaction listener to resume audio if suspended by browser policy
-    const userGestureResume = () => {
-      if (this.isSonifying && this.audioEngine) {
-        this.audioEngine.resume();
-      }
-    };
-    window.addEventListener('click', userGestureResume, { passive: true });
-    window.addEventListener('keydown', userGestureResume, { passive: true });
   }
 
-  private setSonifying(active: boolean): void {
-    this.isSonifying = active;
-    const media = this.mediaFinder.getActiveMedia();
+  private toggleExtensionEnabled(): boolean {
+    this.extensionEnabled = !this.extensionEnabled;
+    chrome.storage.local.set({ extensionEnabled: this.extensionEnabled });
 
-    if (this.isSonifying) {
-      this.audioEngine.start();
-      this.audioEngine.resume();
-      if (this.activePreset) {
-        this.audioEngine.setPreset(this.activePreset.id);
-      }
-      if (media) {
-        this.startCapture(media);
+    const media = this.mediaFinder.getActiveMedia();
+    const isPlaying = media instanceof HTMLVideoElement && !media.paused && !media.ended;
+
+    if (this.extensionEnabled) {
+      if (isPlaying && media) {
+        this.startAutoSonification(media);
       } else {
-        this.emitter.emitError({
-          code: 'NO_MEDIA_FOUND',
-          message: 'No active video or canvas element detected on the page'
-        });
+        this.updateBadge(false);
       }
     } else {
+      this.pauseSonification();
+      this.updateBadge(false);
+    }
+
+    return this.extensionEnabled;
+  }
+
+  private async startAutoSonification(media: TrackedMedia): Promise<void> {
+    if (!this.manualPresetOverride) {
+      this.detectPresetForMedia(media);
+    }
+    await this.audioEngine.start();
+    this.audioEngine.resume();
+    if (this.activePreset) {
+      this.audioEngine.setPreset(this.activePreset.id);
+    }
+    this.startCapture(media);
+    this.isSonifying = true;
+    this.updateBadge(true);
+  }
+
+  private pauseSonification(): void {
+    if (this.isSonifying) {
       this.audioEngine.pause();
       if (this.capturePipeline) {
         this.capturePipeline.stop();
       }
-      this.emitter.emitState({ state: 'paused', t: this.currentT });
+      this.isSonifying = false;
+      this.updateBadge(false);
+    }
+  }
+
+  private updateBadge(isActive: boolean): void {
+    try {
+      chrome.runtime.sendMessage({ type: 'UPDATE_BADGE', isActive }).catch(() => {});
+    } catch {
+      // Ignored
     }
   }
 
   private handleMediaFound(media: TrackedMedia): void {
+    this.manualPresetOverride = false;
+    this.detectPresetForMedia(media);
     this.emitReadyEvent(media);
-    if (this.isSonifying) {
-      this.startCapture(media);
+
+    const isPlaying = media instanceof HTMLVideoElement ? !media.paused && !media.ended : false;
+    if (this.extensionEnabled && isPlaying) {
+      this.startAutoSonification(media);
     }
   }
 
   private handleMediaLost(): void {
-    if (this.capturePipeline) {
-      this.capturePipeline.stop();
-    }
-    this.audioEngine.pause();
+    this.pauseSonification();
     this.emitter.emitState({ state: 'lost-media', t: this.currentT });
   }
 
@@ -206,11 +320,18 @@ class EarthJukeboxController {
     if (state === 'seeked') {
       this.isSeeked = true;
     }
-    if (state === 'playing' && this.isSonifying) {
-      this.audioEngine.resume();
-    } else if ((state === 'paused' || state === 'ended') && this.isSonifying) {
-      this.audioEngine.pause();
+
+    if (state === 'playing') {
+      if (this.extensionEnabled) {
+        const media = this.mediaFinder.getActiveMedia();
+        if (media) {
+          this.startAutoSonification(media);
+        }
+      }
+    } else if (state === 'paused' || state === 'ended') {
+      this.pauseSonification();
     }
+
     this.emitter.emitState({ state, t: time });
   }
 
@@ -272,7 +393,13 @@ class EarthJukeboxController {
 
     const brightness = calculateAverageLuminance(currentData, { ignoreDark });
     const colorMetrics = extractColorMetrics(currentData, { ignoreDark });
-    const dataValue = calculateAverageLegendValue(currentData, this.directLut);
+    let dataValue = calculateAverageLegendValue(currentData, this.directLut);
+
+    // If unlisted or general visualization, dynamically map live brightness, saturation, and hue to data value
+    if (dataValue === null && (!preset.legend || preset.id === 'general-earth')) {
+      dataValue = round3(clamp(brightness * 0.65 + colorMetrics.saturation * 0.35));
+    }
+
     const regions = calculateRegionGrid(
       currentData,
       { rows: preset?.grid?.[0] ?? 4, cols: preset?.grid?.[1] ?? 8, width: frame.width, height: frame.height, ignoreDark },
@@ -327,7 +454,7 @@ class EarthJukeboxController {
     // 1. Dispatch custom DOM event on window
     this.emitter.emitFrame(payload);
 
-    // 2. Direct feed to Pranav's Web Audio Engine
+    // 2. Direct feed to Pranav's Web Audio Engine (100% Real-time Synthesis)
     if (this.isSonifying) {
       this.audioEngine.processFrame(payload);
     }

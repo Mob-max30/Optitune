@@ -20,7 +20,7 @@ chrome.commands.onCommand.addListener(async (command) => {
         if (chrome.runtime.lastError) {
           console.warn('[EJB Background] Content script not active on this tab:', chrome.runtime.lastError.message);
         } else if (response) {
-          updateBadge(tab.id, response.isActive);
+          updateBadge(tab.id, response.extensionEnabled ?? response.isActive);
         }
       });
     }

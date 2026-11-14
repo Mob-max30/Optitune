@@ -10,6 +10,22 @@
 import type { PresetAudioProfile } from './types';
 
 export const PRESET_AUDIO_PROFILES: Record<string, PresetAudioProfile> = {
+  'general-earth': {
+    id: 'general-earth',
+    defaultMode: 'scientific',
+    preferredScale: 'dorian',
+    baseFrequency: 110.00, // A2
+    maxFrequency: 659.25,  // E5
+    primaryMetric: 'brightness',
+    oscillatorType: 'triangle',
+    filterType: 'lowpass',
+    baseCutoff: 600,
+    maxCutoff: 6000,
+    reverbDecay: 2.0,
+    harmonicSpread: 0.2,
+    soundLegend: 'Adaptive Live Sonification: Audio shifts instantaneously with on-screen color, spatial movement, and illumination.'
+  },
+
   'gedi-forest-height': {
     id: 'gedi-forest-height',
     defaultMode: 'scientific',

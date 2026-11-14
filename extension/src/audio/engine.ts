@@ -235,8 +235,10 @@ export class EarthJukeboxAudioEngine {
     const spatial = calculateSpatialDistribution(metrics.regions, Boolean(metrics.dataValue !== null));
 
     // 2. Compute primary normalized scientific value [0.0, 1.0]
-    // Uses calibrated physical dataValue where available; falls back to Rec. 601 brightness
-    const primaryMetricValue = metrics.dataValue !== null ? metrics.dataValue : metrics.brightness;
+    // Uses calibrated physical dataValue where available; falls back to dynamic brightness & saturation
+    const primaryMetricValue = metrics.dataValue !== null
+      ? metrics.dataValue
+      : Math.min(1.0, Math.max(0.0, metrics.brightness * 0.7 + metrics.saturation * 0.3));
 
     // 3. Compute Target Frequency based on Active Mode
     let targetFrequency = 220;
@@ -248,18 +250,32 @@ export class EarthJukeboxAudioEngine {
         this.activeProfile.maxFrequency,
         'log'
       );
+      // Modulate frequency with hue so color temperature distinctly alters acoustic pitch in real-time
+      targetFrequency = targetFrequency * (0.8 + metrics.hue * 0.4);
     } else if (this.currentMode === 'artistic') {
-      // Harmonically quantized to scale (e.g. Lydian, Akebono, Pentatonic)
+      // Harmonically quantized to scale, root note shifting with hue
+      const rootMidi = 48 + Math.floor(metrics.hue * 12);
       targetFrequency = quantizeToScale(
         primaryMetricValue,
         this.activeProfile.preferredScale,
-        48, // C3
+        rootMidi,
         2.5
       );
     } else if (this.currentMode === 'scanner') {
       // Pass spatial profiles to Scanner Voice
       this.scannerVoice?.updateProfile(profile);
       return; // Scanner voice owns its audio loop
+    }
+
+    // Adapt oscillator timbre in real time to match video color temperature
+    if (this.leadVoice) {
+      if (metrics.hue < 0.15 || metrics.hue > 0.90) {
+        this.leadVoice.setOscillatorType('sawtooth');
+      } else if (metrics.hue >= 0.50 && metrics.hue <= 0.75) {
+        this.leadVoice.setOscillatorType('sine');
+      } else {
+        this.leadVoice.setOscillatorType(this.activeProfile.oscillatorType);
+      }
     }
 
     // 4. Compute Filter Cutoff Frequency (opens up with motion and high brightness)

@@ -1,4 +1,14 @@
 {
+  "general-earth": {
+    "id": "general-earth",
+    "name": "Live Real-Time Earth Sonification (Adaptive)",
+    "match": "earth",
+    "roi": [0.01, 0.01, 0.98, 0.98],
+    "tickHz": 12,
+    "grid": [4, 8],
+    "description": "Adaptive real-time sonification for all NASA Earth visualizations. Translates live visual colors, latitudinal brightness bands, and optical motion directly into sound.",
+    "soundHint": "Blue = deep ocean pad; Green = terrestrial mid-tones; Red/Orange = thermal harmonics; White = crisp upper accents."
+  },
   "gedi-forest-height": {
     "id": "gedi-forest-height",
     "name": "GEDI Forest Canopy Height",

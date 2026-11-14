@@ -71,19 +71,31 @@ function setStatus(state: 'active' | 'inactive' | 'searching', text: string): vo
   statusBadge.textContent = text;
 }
 
-function updateUiState(isActive: boolean, hasMedia: boolean, preset: PresetConfig | null): void {
-  if (isActive) {
-    toggleBtn.classList.remove('btn-primary');
-    toggleBtn.classList.add('btn-active');
-    toggleBtn.setAttribute('aria-pressed', 'true');
-    toggleBtnText.textContent = 'Sonifying (Click to Stop)';
-    setStatus('active', 'Live');
-  } else {
+function updateUiState(
+  extensionEnabled: boolean,
+  isActive: boolean,
+  hasMedia: boolean,
+  isMediaPlaying: boolean,
+  preset: PresetConfig | null
+): void {
+  if (!extensionEnabled) {
     toggleBtn.classList.remove('btn-active');
     toggleBtn.classList.add('btn-primary');
     toggleBtn.setAttribute('aria-pressed', 'false');
-    toggleBtnText.textContent = 'Start Sonifying';
-    setStatus(hasMedia ? 'inactive' : 'searching', hasMedia ? 'Ready' : 'Searching');
+    toggleBtnText.textContent = 'Enable Auto-Sonify';
+    setStatus('inactive', 'Disabled');
+  } else if (isActive && isMediaPlaying) {
+    toggleBtn.classList.remove('btn-primary');
+    toggleBtn.classList.add('btn-active');
+    toggleBtn.setAttribute('aria-pressed', 'true');
+    toggleBtnText.textContent = 'Sonifying (Click to Pause)';
+    setStatus('active', 'Live');
+  } else {
+    toggleBtn.classList.remove('btn-primary');
+    toggleBtn.classList.add('btn-active');
+    toggleBtn.setAttribute('aria-pressed', 'true');
+    toggleBtnText.textContent = hasMedia ? 'Auto-Ready (Plays with Video)' : 'Waiting for Video...';
+    setStatus(hasMedia ? 'active' : 'searching', hasMedia ? 'Auto-Ready' : 'Searching');
   }
 
   if (preset) {
@@ -136,7 +148,13 @@ function fetchStatus(): void {
       return;
     }
 
-    updateUiState(res.isActive, res.hasMedia, res.activePreset);
+    updateUiState(
+      res.extensionEnabled ?? res.isActive,
+      res.isActive,
+      res.hasMedia,
+      res.isMediaPlaying ?? res.isActive,
+      res.activePreset
+    );
 
     if (res.mode && modeSelect.value !== res.mode) {
       modeSelect.value = res.mode;
@@ -161,8 +179,14 @@ function setupEvents(): void {
         return;
       }
       if (res) {
-        updateUiState(res.isActive, true, null);
-        announce(res.isActive ? 'Sonification started.' : 'Sonification stopped.');
+        updateUiState(
+          res.extensionEnabled,
+          res.isActive,
+          true,
+          res.isMediaPlaying ?? res.isActive,
+          null
+        );
+        announce(res.extensionEnabled ? 'Auto-sonification enabled.' : 'Auto-sonification disabled.');
       }
     });
   });
@@ -191,7 +215,7 @@ function setupEvents(): void {
       { type: 'SELECT_PRESET', presetId: selectedId },
       (res) => {
         if (res?.success) {
-          updateUiState(false, true, preset);
+          updateUiState(true, true, true, true, preset);
           announce(`Preset changed to ${preset.name}.`);
         }
       }
