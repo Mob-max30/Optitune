@@ -15,7 +15,7 @@
 | Module | Owner | Core Responsibilities |
 |---|---|---|
 | **Visual Analysis & Extension Pipeline** | **Ujwal A** | Chrome extension (MV3), media detection, 32×32 hardware downscaling, Rec. 601 luminance, HSV peak hue voting, CIELAB scientific legend calibration, 4×8 regional grid matrix, inter-frame motion delta, transient flash detection, data contract schema, fallback demo studio, packaging & deployment. |
-| **Sonification Engine** | **Pranav K** | Sound synthesis engine, Web Audio API / Tone.js multi-voice synth, parameter-to-audio mapping (canopy/temp → pitch, regional matrix → stereo panning, motion → timbre/filter cutoff, flashes → percussion clicks). |
+| **Sonification & Semantic Engine** | **Pranav K** | Sound synthesis engine, Web Audio API multi-voice synth, Scientific Feature Representation (SFR v1), candidate scoring algorithm, 15-entry perceptual mapping knowledge base, autonomous semantic selector, conflict resolution, auditory legend generator, original dataset ingestion. |
 
 **Architectural Boundary:**  
 Ujwal's visual pipeline never synthesizes sound; Pranav's audio engine never touches raw pixels. The two modules communicate exclusively across the standardized **`CustomEvent` `ejb:frame` (Contract v1)** event bus.
@@ -167,8 +167,21 @@ Detailed specification available in [`docs/CONTRACT.md`](docs/CONTRACT.md).
 
 ## 📚 Documentation Index
 
-- 📋 [**Data Contract Specification**](docs/CONTRACT.md) — Exact event schemas and rules shared between Ujwal and Pranav.
-- 🔬 [**Scientific Methodology & Architecture**](docs/METHODOLOGY.md) — 10-section judge document detailing mathematical formulas, color science, accuracy limitations, and data credits.
+- 📋 [**Data Contract Specification (v1)**](docs/CONTRACT.md) — Exact event schemas and rules shared between visual pipeline and audio engine.
+- 🔍 [**Contract v1 Audit**](docs/CONTRACT_V1_AUDIT.md) — Field-by-field audit of Contract v1 telemetry.
+- 🛰️ [**NASA Profile Audit**](docs/NASA_PROFILE_AUDIT.md) — Canonical preset inventory reconciling challenge visualizations.
+- 🏗️ [**Current Architecture Audit**](docs/CURRENT_ARCHITECTURE_AUDIT.md) — System boundaries, data flow, and non-breaking evolution path.
+- 🧬 [**Scientific Feature Representation (SFR v1)**](docs/SFR_SCHEMA.md) — Provenance-aware intermediate representation (Tiers 1–4).
+- 🎼 [**Perceptual Mapping Knowledge Base**](docs/MAPPING_KNOWLEDGE_BASE.md) — 15 evidence-labelled scientific-to-auditory mappings.
+- 📖 [**Mapping Evidence & Psychoacoustics**](docs/MAPPING_EVIDENCE.md) — Academic citations (Spence, Bregman, Stevens, Gaver, NASA SVS).
+- 🧠 [**Autonomous Semantic Mapping Engine**](docs/SEMANTIC_MAPPING_ENGINE.md) — Candidate scoring algorithm, conflict matrix, and tie-breaking.
+- 📄 [**Mapping Profile Schema**](docs/MAPPING_PROFILE_SCHEMA.md) — Specification and JSON example of validated profiles.
+- 🔬 [**Scientific Integrity & Safeguards**](docs/SCIENTIFIC_INTEGRITY.md) — Measurement vs. estimate vs. proxy rules and non-fabrication policies.
+- 📊 [**Evaluation Plan**](docs/EVALUATION_PLAN.md) — Objective evaluation methods and listening comprehension protocols.
+- 📈 [**Evaluation Results & Benchmarks**](docs/EVALUATION_RESULTS.md) — Measured latencies ($0.47\text{ ms}$ total pipeline) and accuracy results.
+- ⚠️ [**Known Limitations & Boundaries**](docs/KNOWN_LIMITATIONS.md) — Browser CORS, gesture policies, and video compression boundaries.
+- 🎬 [**Repeatable Demonstration Script**](docs/DEMO_SCRIPT.md) — 5-act judging walkthrough in Demo Studio.
+- 📝 [**Final Verification Log**](docs/FINAL_VERIFICATION_LOG.md) — Test commands, build metrics, and version records.
 - 🔒 [**Privacy Policy & Guarantee**](docs/PRIVACY.md) — Verification of 100% local, client-side execution with zero data collection.
 
 ---
