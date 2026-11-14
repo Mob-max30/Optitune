@@ -167,6 +167,7 @@ export function evaluateProfileParameters(
 export class AutonomousAudioEngineAdapter {
   private engine: EarthJukeboxAudioEngine;
   private currentProfile: MappingProfile | null = null;
+  private activeDatasetId: string | null = null;
 
   constructor(engine: EarthJukeboxAudioEngine) {
     this.engine = engine;
@@ -180,6 +181,14 @@ export class AutonomousAudioEngineAdapter {
   }
 
   /**
+   * Explicitly resets the cached profile (e.g. on preset change).
+   */
+  resetProfile(): void {
+    this.currentProfile = null;
+    this.activeDatasetId = null;
+  }
+
+  /**
    * Processes a scientific feature frame, autonomously generating or updating
    * the MappingProfile and applying the evaluated synthesis parameters.
    */
@@ -187,7 +196,8 @@ export class AutonomousAudioEngineAdapter {
     const datasetId = frame.sourceId || frame.datasetId || 'earth-dataset';
 
     // 1. Select or update mapping profile
-    if (!this.currentProfile || this.currentProfile.profileId.indexOf(datasetId) === -1) {
+    if (!this.currentProfile || this.activeDatasetId !== datasetId) {
+      this.activeDatasetId = datasetId;
       this.currentProfile = selectAutonomousMappings(frame);
     }
 
@@ -210,11 +220,11 @@ export class AutonomousAudioEngineAdapter {
       vizId: datasetId,
       metrics: {
         brightness: params.leadGain,
-        dominantColor: { r: 0.2, g: 0.8, b: 0.3 },
-        hue: 0.35,
-        saturation: 0.6,
+        dominantColor: frame.metadata?.dominantColor ?? { r: 0.2, g: 0.8, b: 0.3 },
+        hue: frame.metadata?.hue ?? 0.35,
+        saturation: frame.metadata?.saturation ?? 0.6,
         motion: (params.filterCutoff - 300) / 4700,
-        dataValue: (params.leadFrequency - 110) / (880 - 110),
+        dataValue: Math.max(0, Math.min(1.0, (params.leadFrequency - 110) / (880 - 110))),
         regions: {
           rows: 4,
           cols: 8,
@@ -232,7 +242,7 @@ export class AutonomousAudioEngineAdapter {
         x: e.x,
         y: e.y
       })),
-      layers: params.layers,
+      layers: params.layers && Object.keys(params.layers).length > 0 ? params.layers : (frame.metadata?.layers ?? undefined),
       profile: {
         rows: params.rowEnergies,
         cols: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]

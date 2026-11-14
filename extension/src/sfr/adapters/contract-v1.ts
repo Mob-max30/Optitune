@@ -242,7 +242,11 @@ export function adaptContractV1ToSfr(payload: EjbFramePayload): ScientificFeatur
     metadata: {
       seeked: flags.seeked,
       scene_cut: flags.scene_cut,
-      presetName: preset?.name
+      presetName: preset?.name,
+      dominantColor: metrics.dominantColor,
+      hue: metrics.hue,
+      saturation: metrics.saturation,
+      layers
     }
   };
 }

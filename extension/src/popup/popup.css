@@ -302,6 +302,62 @@ kbd {
   line-height: 1.4;
 }
 
+.ejb-legend-title {
+  font-size: 11px;
+  color: var(--accent-cyan);
+  margin-bottom: 4px;
+}
+
+.ejb-legend-intro {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.ejb-legend-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0;
+}
+
+.ejb-legend-item {
+  background: rgba(30, 41, 59, 0.5);
+  border-left: 2px solid var(--accent-cyan);
+  padding: 4px 6px;
+  border-radius: 2px;
+}
+
+.ejb-legend-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10px;
+}
+
+.ejb-badge {
+  font-size: 9px;
+  background: var(--nasa-blue);
+  color: #fff;
+  padding: 1px 4px;
+  border-radius: 3px;
+  text-transform: capitalize;
+}
+
+.ejb-legend-desc {
+  font-size: 10px;
+  color: #e2e8f0;
+  margin-top: 2px;
+}
+
+.ejb-legend-citation {
+  display: block;
+  font-size: 8.5px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
 /* Footer */
 .footer {
   display: flex;

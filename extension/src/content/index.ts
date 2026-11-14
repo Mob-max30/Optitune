@@ -10,6 +10,10 @@ import { calculateRegionGrid, calculateSpatialProfiles } from '../analysis/regio
 import { calculateMotionAndEvents } from '../analysis/motion';
 import { EarthJukeboxAudioEngine, type SonificationMode } from '../audio';
 import { clamp, round3 } from '../analysis/normalize';
+import { adaptContractV1ToSfr } from '../sfr/adapters/contract-v1';
+import { AutonomousAudioEngineAdapter } from '../semantic/audio-profile-adapter';
+import type { ScientificFeatureFrame } from '../sfr/types';
+import type { MappingProfile } from '../semantic/types';
 
 function isSonificationMode(val: unknown): val is SonificationMode {
   return val === 'scientific' || val === 'artistic' || val === 'scanner';
@@ -24,12 +28,15 @@ class EarthJukeboxController {
   private mediaFinder: MediaFinder;
   private capturePipeline: FrameCapturePipeline | null = null;
   private audioEngine = new EarthJukeboxAudioEngine();
+  private autonomousAdapter = new AutonomousAudioEngineAdapter(this.audioEngine);
 
   // Analysis state (runs directly in-thread on 32x32 buffer, taking <0.08ms per tick with 0 CSP issues)
   private directPreviousFrame: Uint8ClampedArray | null = null;
   private directBaselines = new Float32Array(64).fill(0.1);
   private directLut: PreparedLegendLUT | null = null;
   private lastPayload: EjbFramePayload | null = null;
+  private lastSfrFrame: ScientificFeatureFrame | null = null;
+  private lastMappingProfile: MappingProfile | null = null;
 
   private isSeeked = false;
   private currentT = 0;
@@ -138,6 +145,8 @@ class EarthJukeboxController {
     this.directBaselines.fill(0.1);
     this.directPreviousFrame = null;
     this.audioEngine.setPreset(preset.id);
+    this.autonomousAdapter.resetProfile();
+    this.lastMappingProfile = null;
 
     if (this.capturePipeline) {
       this.capturePipeline.updateConfig({
@@ -183,6 +192,7 @@ class EarthJukeboxController {
           const media = this.mediaFinder.getActiveMedia();
           const isMediaPlaying = media instanceof HTMLVideoElement ? !media.paused && !media.ended : false;
           const telemetry = this.audioEngine.getTelemetry();
+          const profile = this.lastMappingProfile || this.autonomousAdapter.getActiveProfile();
           sendResponse({
             extensionEnabled: this.extensionEnabled,
             isActive: this.isSonifying,
@@ -194,7 +204,8 @@ class EarthJukeboxController {
             frameIndex: this.currentFrameIndex,
             mode: telemetry.mode,
             telemetry,
-            lastPayload: this.lastPayload
+            lastPayload: this.lastPayload,
+            mappingProfile: profile
           });
           return true;
         }
@@ -453,17 +464,26 @@ class EarthJukeboxController {
 
     this.lastPayload = payload;
 
-    // 1. Dispatch custom DOM event on window
+    // 1. Contract v1 -> Scientific Feature Representation (SFR)
+    const sfrFrame = adaptContractV1ToSfr(payload);
+    this.lastSfrFrame = sfrFrame;
+
+    // 2. Dispatch custom DOM event on window (Preserving Contract v1 compatibility)
     this.emitter.emitFrame(payload);
 
-    // 2. Direct feed to Pranav's Web Audio Engine (100% Real-time Synthesis)
+    // 3. Drive Web Audio synthesis through Autonomous Semantic Adapter
     if (this.isSonifying) {
-      this.audioEngine.processFrame(payload);
+      this.autonomousAdapter.processScientificFrame(sfrFrame);
+      this.lastMappingProfile = this.autonomousAdapter.getActiveProfile();
     }
 
-    // 3. Broadcast to popup monitor
+    // 4. Broadcast to popup monitor
     try {
-      chrome.runtime.sendMessage({ type: 'POPUP_METRIC_UPDATE', payload }).catch(() => {});
+      chrome.runtime.sendMessage({
+        type: 'POPUP_METRIC_UPDATE',
+        payload,
+        mappingProfile: this.lastMappingProfile
+      }).catch(() => {});
     } catch {
       // Popup might be closed
     }

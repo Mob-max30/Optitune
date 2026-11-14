@@ -1,8 +1,12 @@
 import type { PresetConfig, EjbFramePayload } from '../contract/types';
+import type { MappingProfile } from '../semantic/types';
+import { generateStructuredLegendHtml } from '../accessibility/auditory-legend';
 import { PRESETS } from '../presets';
 
 let activeTabId: number | null = null;
 let pollTimer: number | null = null;
+let currentPreset: PresetConfig | null = null;
+let currentProfileId: string | null = null;
 
 const toggleBtn = document.getElementById('toggleBtn') as HTMLButtonElement;
 const toggleBtnText = document.getElementById('toggleBtnText') as HTMLSpanElement;
@@ -97,9 +101,10 @@ function updateUiState(
   }
 
   if (preset) {
+    currentPreset = preset;
     presetSelect.value = preset.id;
     presetDescription.textContent = preset.description;
-    if (preset.soundHint) {
+    if (!currentProfileId && preset.soundHint) {
       soundLegendText.innerHTML = preset.soundHint;
     }
     if (preset.legend?.unit) {
@@ -110,6 +115,13 @@ function updateUiState(
   }
 }
 
+function renderMappingProfile(profile: MappingProfile | null | undefined): void {
+  if (!profile || profile.isSilent || profile.activeMappings.length === 0) return;
+  if (currentProfileId === profile.profileId) return;
+  currentProfileId = profile.profileId;
+  soundLegendText.innerHTML = generateStructuredLegendHtml(profile);
+}
+
 function renderMetrics(p: EjbFramePayload): void {
   if (!p || !p.metrics) return;
 
@@ -117,7 +129,12 @@ function renderMetrics(p: EjbFramePayload): void {
   meterLumaBar.style.width = `${Math.round(p.metrics.brightness * 100)}%`;
 
   if (p.metrics.dataValue !== null && p.metrics.dataValue !== undefined) {
-    metricDataValue.textContent = p.metrics.dataValue.toFixed(2);
+    if (currentPreset?.legend && currentPreset.legend.min !== undefined && currentPreset.legend.max !== undefined) {
+      const realVal = currentPreset.legend.min + p.metrics.dataValue * (currentPreset.legend.max - currentPreset.legend.min);
+      metricDataValue.textContent = realVal.toFixed(1);
+    } else {
+      metricDataValue.textContent = p.metrics.dataValue.toFixed(2);
+    }
   } else {
     metricDataValue.textContent = `${(p.metrics.brightness * 100).toFixed(0)}% (approx)`;
   }
@@ -153,6 +170,10 @@ function fetchStatus(): void {
       res.isMediaPlaying ?? res.isActive,
       res.activePreset
     );
+
+    if (res.mappingProfile) {
+      renderMappingProfile(res.mappingProfile);
+    }
 
     if (res.mode && modeSelect.value !== res.mode) {
       modeSelect.value = res.mode;
@@ -222,8 +243,9 @@ function setupEvents(): void {
 
   // Listen for broadcast frame updates forwarded to extension
   chrome.runtime.onMessage.addListener((msg) => {
-    if (msg.type === 'POPUP_METRIC_UPDATE' && msg.payload) {
-      renderMetrics(msg.payload);
+    if (msg.type === 'POPUP_METRIC_UPDATE') {
+      if (msg.payload) renderMetrics(msg.payload);
+      if (msg.mappingProfile) renderMappingProfile(msg.mappingProfile);
     }
   });
 }

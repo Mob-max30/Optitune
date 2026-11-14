@@ -11,6 +11,9 @@ import { calculateRegionGrid, calculateSpatialProfiles } from '../extension/src/
 import { calculateMotionAndEvents } from '../extension/src/analysis/motion';
 import { clamp, round3 } from '../extension/src/analysis/normalize';
 import { EarthJukeboxAudioEngine, type SonificationMode } from '../extension/src/audio';
+import { adaptContractV1ToSfr } from '../extension/src/sfr/adapters/contract-v1';
+import { AutonomousAudioEngineAdapter } from '../extension/src/semantic/audio-profile-adapter';
+import { generateStructuredLegendHtml } from '../extension/src/accessibility/auditory-legend';
 
 // DOM Elements
 const simulationCanvas = document.getElementById('simulationCanvas') as HTMLCanvasElement;
@@ -76,6 +79,8 @@ const audioEngine = new EarthJukeboxAudioEngine({
   mode: 'scientific',
   masterVolume: 0.7
 });
+const autonomousAdapter = new AutonomousAudioEngineAdapter(audioEngine);
+let lastProfileId: string | null = null;
 
 // Initialize
 function init(): void {
@@ -114,6 +119,8 @@ function updatePresetInfo(): void {
   }
   preparedLut = prepareLegendLUT(activePreset.legend);
   audioEngine.setPreset(activePreset.id);
+  autonomousAdapter.resetProfile();
+  lastProfileId = null;
   cellBaselines.fill(0.1);
   previousBuffer = null;
   drawRoiOverlay();
@@ -365,6 +372,16 @@ function analyzeCurrentFrame(now: number): void {
     events: motionRes.events.length > 0 ? motionRes.events : undefined,
     profile
   };
+
+  const sfrFrame = adaptContractV1ToSfr(payload);
+  if (isPlaying) {
+    autonomousAdapter.processScientificFrame(sfrFrame);
+    const semProfile = autonomousAdapter.getActiveProfile();
+    if (semProfile && semProfile.profileId !== lastProfileId) {
+      lastProfileId = semProfile.profileId;
+      demoSoundLegend.innerHTML = generateStructuredLegendHtml(semProfile);
+    }
+  }
 
   window.dispatchEvent(
     new CustomEvent<EjbFramePayload>('ejb:frame', {
