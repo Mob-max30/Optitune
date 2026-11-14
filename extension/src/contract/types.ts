@@ -140,7 +140,7 @@ export interface EjbControlPayload {
   tickHz?: number;
   grid?: [number, number];
   roi?: [number, number, number, number];
-  mode?: 'scientific' | 'artistic' | 'scanner';
+  mode?: 'scientific' | 'artistic' | 'scanner' | 'raaga';
 }
 
 /** CustomEvent map for window event listeners */

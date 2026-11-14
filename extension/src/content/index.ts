@@ -17,7 +17,7 @@ import type { ScientificFeatureFrame } from '../sfr/types';
 import type { MappingProfile } from '../semantic/types';
 
 function isSonificationMode(val: unknown): val is SonificationMode {
-  return val === 'scientific' || val === 'artistic' || val === 'scanner';
+  return val === 'scientific' || val === 'artistic' || val === 'scanner' || val === 'raaga';
 }
 
 class EarthJukeboxController {
@@ -28,7 +28,7 @@ class EarthJukeboxController {
   private emitter = new EjbEmitter();
   private mediaFinder: MediaFinder;
   private capturePipeline: FrameCapturePipeline | null = null;
-  private audioEngine = new EarthJukeboxAudioEngine({ mode: 'artistic' });
+  private audioEngine = new EarthJukeboxAudioEngine({ mode: 'raaga' });
   private autonomousAdapter = new AutonomousAudioEngineAdapter(this.audioEngine);
   private sascAdapter = new SascAudioEngineAdapter(this.audioEngine);
 
@@ -71,8 +71,8 @@ class EarthJukeboxController {
       if (isSonificationMode(items.activeMode)) {
         this.audioEngine.setMode(items.activeMode);
       } else {
-        this.audioEngine.setMode('artistic');
-        chrome.storage.local.set({ activeMode: 'artistic' });
+        this.audioEngine.setMode('raaga');
+        chrome.storage.local.set({ activeMode: 'raaga' });
       }
 
       // If a video is already playing right now on page load, start sonification immediately

@@ -77,7 +77,7 @@ const cellBaselines = new Float32Array(64).fill(0.1);
 
 // Earth Jukebox Sonification Audio Engine (Pranav K)
 const audioEngine = new EarthJukeboxAudioEngine({
-  mode: 'artistic',
+  mode: 'raaga',
   masterVolume: 0.7
 });
 const autonomousAdapter = new AutonomousAudioEngineAdapter(audioEngine);

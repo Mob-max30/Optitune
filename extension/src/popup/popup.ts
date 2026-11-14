@@ -20,6 +20,10 @@ const soundLegendText = document.getElementById('soundLegendText') as HTMLDivEle
 const modeSelect = document.getElementById('modeSelect') as HTMLSelectElement;
 const volumeRange = document.getElementById('volumeRange') as HTMLInputElement;
 
+const raagaNameDisplay = document.getElementById('raagaNameDisplay') as HTMLSpanElement | null;
+const taalaNameDisplay = document.getElementById('taalaNameDisplay') as HTMLSpanElement | null;
+const swaraDisplay = document.getElementById('swaraDisplay') as HTMLElement | null;
+
 const metricLuma = document.getElementById('metricLuma') as HTMLSpanElement;
 const meterLumaBar = document.getElementById('meterLumaBar') as HTMLDivElement;
 const metricDataValue = document.getElementById('metricDataValue') as HTMLSpanElement;
@@ -189,6 +193,16 @@ function fetchStatus(): void {
 
     if (res.mode && modeSelect.value !== res.mode) {
       modeSelect.value = res.mode;
+    }
+
+    if (res.telemetry?.raagaName && raagaNameDisplay) {
+      raagaNameDisplay.textContent = `Raaga: ${res.telemetry.raagaName}`;
+    }
+    if (res.telemetry?.taalaName && taalaNameDisplay) {
+      taalaNameDisplay.textContent = res.telemetry.taalaName;
+    }
+    if (res.telemetry?.currentSwara && swaraDisplay) {
+      swaraDisplay.textContent = res.telemetry.currentSwara;
     }
 
     if (res.lastPayload) {

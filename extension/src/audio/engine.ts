@@ -30,6 +30,10 @@ import { PadVoice } from './synths/pad-voice';
 import { PercussionVoice } from './synths/percussion';
 import { TextureNoiseVoice } from './synths/noise-voice';
 import { ScannerVoice } from './synths/scanner-voice';
+import { TanpuraVoice } from './synths/tanpura-voice';
+import { TablaVoice } from './synths/tabla-voice';
+import { IndianMelodicVoice } from './synths/raaga-lead';
+import { getRaagaForDataset, getTaalaForDataset } from './raagas';
 
 export class EarthJukeboxAudioEngine {
   private ctx: AudioContext | null = null;
@@ -45,11 +49,16 @@ export class EarthJukeboxAudioEngine {
   private noiseVoice: TextureNoiseVoice | null = null;
   private scannerVoice: ScannerVoice | null = null;
 
+  // Classical Indian voices
+  private tanpuraVoice: TanpuraVoice | null = null;
+  private tablaVoice: TablaVoice | null = null;
+  private raagaMelodicVoice: IndianMelodicVoice | null = null;
+
   // State
   private isRunning = false;
   private isMuted = false;
   private masterVolume = 0.8;
-  private currentMode: SonificationMode = 'scientific';
+  private currentMode: SonificationMode = 'raaga';
   private activeProfile: PresetAudioProfile = PRESET_AUDIO_PROFILES['gedi-forest-height'];
   private smoother = new FrameMetricsSmoother(220);
 
@@ -98,6 +107,9 @@ export class EarthJukeboxAudioEngine {
 
     if (this.currentMode === 'scanner') {
       this.scannerVoice?.start();
+    } else if (this.currentMode === 'raaga') {
+      this.tanpuraVoice?.start();
+      this.tablaVoice?.start();
     }
 
     console.log(`[Audio Engine] Earth Jukebox Sonification started (Mode: ${this.currentMode}).`);
@@ -114,6 +126,8 @@ export class EarthJukeboxAudioEngine {
     this.padVoice?.fadeTo(0, 0.04);
     this.noiseVoice?.fadeTo(0, 0.04);
     this.scannerVoice?.stop();
+    this.tanpuraVoice?.stop();
+    this.tablaVoice?.stop();
   }
 
   /**
@@ -128,6 +142,9 @@ export class EarthJukeboxAudioEngine {
     this.masterGain.gain.setTargetAtTime(this.isMuted ? 0 : this.masterVolume, now, 0.05);
     if (this.currentMode === 'scanner') {
       this.scannerVoice?.start();
+    } else if (this.currentMode === 'raaga') {
+      this.tanpuraVoice?.start();
+      this.tablaVoice?.start();
     }
   }
 
@@ -139,11 +156,13 @@ export class EarthJukeboxAudioEngine {
     this.pause();
     this.isRunning = false;
     this.detachEventListeners();
+    this.tanpuraVoice?.stop();
+    this.tablaVoice?.stop();
     console.log('[Audio Engine] Earth Jukebox Sonification stopped.');
   }
 
   /**
-   * Changes the active sonification mode ('scientific' | 'artistic' | 'scanner').
+   * Changes the active sonification mode ('raaga' | 'artistic' | 'scientific' | 'scanner').
    */
   setMode(mode: SonificationMode): void {
     this.currentMode = mode;
@@ -153,11 +172,21 @@ export class EarthJukeboxAudioEngine {
       this.leadVoice?.fadeTo(0, 0.05);
       this.padVoice?.fadeTo(0, 0.05);
       this.noiseVoice?.fadeTo(0, 0.05);
+      this.tanpuraVoice?.stop();
+      this.tablaVoice?.stop();
       if (this.isRunning) {
         this.scannerVoice?.start();
       }
+    } else if (mode === 'raaga') {
+      this.scannerVoice?.stop();
+      if (this.isRunning) {
+        this.tanpuraVoice?.start();
+        this.tablaVoice?.start();
+      }
     } else {
       this.scannerVoice?.stop();
+      this.tanpuraVoice?.stop();
+      this.tablaVoice?.stop();
     }
 
     // Notify visual pipeline of mode change if needed
@@ -200,7 +229,17 @@ export class EarthJukeboxAudioEngine {
       this.leadVoice.setOscillatorType(this.activeProfile.oscillatorType);
       this.leadVoice.setFilterType(this.activeProfile.filterType);
     }
+    const raaga = getRaagaForDataset(vizId);
+    const taala = getTaalaForDataset(vizId);
+    if (this.raagaMelodicVoice) {
+      this.raagaMelodicVoice.setRaaga(raaga);
+    }
+    if (this.tablaVoice) {
+      this.tablaVoice.setTaala(taala);
+    }
     this.lastTelemetry.vizId = vizId;
+    this.lastTelemetry.raagaName = raaga.name;
+    this.lastTelemetry.taalaName = taala.name;
   }
 
   /**
@@ -244,7 +283,49 @@ export class EarthJukeboxAudioEngine {
 
     // 3. Compute Target Frequency based on Active Mode
     let targetFrequency = 220;
-    if (this.currentMode === 'scientific') {
+    const activeVizId = vizId || this.activeProfile.id;
+    const raaga = getRaagaForDataset(activeVizId);
+    const taala = getTaalaForDataset(activeVizId);
+    const rootMidi = 48 + Math.floor(metrics.hue * 4) * 2;
+    let currentSwaraName: string | undefined = undefined;
+
+    if (this.currentMode === 'raaga') {
+      // 1. Classical Indian Tanpura Drone (Sa-Pa fundamental acoustic resonance)
+      if (this.tanpuraVoice) {
+        this.tanpuraVoice.setRootMidi(rootMidi, raaga.swaras.includes('M') && !raaga.swaras.includes('P'));
+        this.tanpuraVoice.setGain(0.24 + metrics.brightness * 0.12);
+      }
+
+      // 2. Classical Indian Tabla Rhythm Section (Authentic Theka & Dynamic Laya)
+      if (this.tablaVoice) {
+        this.tablaVoice.setTaala(taala);
+        this.tablaVoice.setRootMidi(rootMidi);
+        this.tablaVoice.setDynamicTempo(metrics.motion, (metrics.motion * 2));
+        this.tablaVoice.setGain(0.30 + metrics.brightness * 0.16);
+
+        // Flash / Lightning bursts trigger instantaneous heavy Tabla "Dha" strike
+        if (events && events.length > 0) {
+          for (const evt of events) {
+            this.tablaVoice.triggerBol('Dha', evt.intensity);
+          }
+        }
+      }
+
+      // 3. Classical Indian Melodic Swara Voice (Bansuri / Sitar with Meend glides)
+      if (this.raagaMelodicVoice) {
+        this.raagaMelodicVoice.setRaaga(raaga);
+        this.raagaMelodicVoice.setRootMidi(rootMidi);
+        const melGain = Math.max(0.15, Math.min(0.65, 0.22 + metrics.brightness * 0.40));
+        const swaraResult = this.raagaMelodicVoice.update(
+          primaryMetricValue,
+          melGain,
+          spatial.pan,
+          metrics.motion
+        );
+        targetFrequency = swaraResult.frequency;
+        currentSwaraName = swaraResult.swara;
+      }
+    } else if (this.currentMode === 'scientific') {
       // Continuous scientific frequency mapping (C3 to D5)
       targetFrequency = mapContinuousFrequency(
         primaryMetricValue,
@@ -256,7 +337,6 @@ export class EarthJukeboxAudioEngine {
       targetFrequency = targetFrequency * (0.8 + metrics.hue * 0.4);
     } else if (this.currentMode === 'artistic') {
       // Harmonically quantized to scale, root note shifting with hue
-      const rootMidi = 48 + Math.floor(metrics.hue * 12);
       targetFrequency = quantizeToScale(
         primaryMetricValue,
         this.activeProfile.preferredScale,
@@ -292,10 +372,11 @@ export class EarthJukeboxAudioEngine {
     const smoothedPan = this.smoother.pan.step(spatial.pan, bypassSmoothing);
     const smoothedCutoff = this.smoother.filterCutoff.step(targetCutoff, bypassSmoothing);
 
-    // 6. Update Primary Lead Voice
+    // 6. Update Primary Lead Voice (Silent in Raaga mode as IndianMelodicVoice takes lead)
+    const effectiveLeadGain = this.currentMode === 'raaga' ? 0.0 : smoothedGain;
     this.leadVoice.update(
       smoothedFreq,
-      smoothedGain,
+      effectiveLeadGain,
       smoothedPan,
       smoothedCutoff,
       2.0,
@@ -359,7 +440,10 @@ export class EarthJukeboxAudioEngine {
       activeVoices: 6, // Lead (2) + Pad (4)
       eventsTriggered: this.eventsTriggeredCount,
       mode: this.currentMode,
-      vizId: this.activeProfile.id
+      vizId: this.activeProfile.id,
+      raagaName: raaga.name,
+      taalaName: taala.name,
+      currentSwara: currentSwaraName
     };
   }
 
@@ -408,6 +492,12 @@ export class EarthJukeboxAudioEngine {
     this.noiseVoice.start();
 
     this.scannerVoice = new ScannerVoice(this.ctx, this.compressor);
+
+    // Classical Indian voices
+    this.tanpuraVoice = new TanpuraVoice(this.ctx, this.compressor);
+    this.tablaVoice = new TablaVoice(this.ctx, this.compressor);
+    this.raagaMelodicVoice = new IndianMelodicVoice(this.ctx, this.compressor);
+    this.raagaMelodicVoice.start();
   }
 
   private attachEventListeners(): void {
@@ -479,6 +569,9 @@ export class EarthJukeboxAudioEngine {
     this.padVoice?.dispose();
     this.noiseVoice?.dispose();
     this.scannerVoice?.dispose();
+    this.tanpuraVoice?.dispose();
+    this.tablaVoice?.dispose();
+    this.raagaMelodicVoice?.dispose();
     if (this.ctx && this.ctx.state !== 'closed') {
       this.ctx.close();
     }

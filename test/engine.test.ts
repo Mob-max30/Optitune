@@ -22,7 +22,7 @@ describe('Earth Jukebox Audio Engine (Pranav)', () => {
     expect(tel.vizId).toBe('gedi-forest-height');
   });
 
-  it('switches between scientific, artistic, and scanner modes', async () => {
+  it('switches between scientific, artistic, scanner, and raaga modes', async () => {
     await engine.start();
 
     engine.setMode('artistic');
@@ -30,6 +30,9 @@ describe('Earth Jukebox Audio Engine (Pranav)', () => {
 
     engine.setMode('scanner');
     expect(engine.getTelemetry().mode).toBe('scanner');
+
+    engine.setMode('raaga');
+    expect(engine.getTelemetry().mode).toBe('raaga');
 
     engine.setMode('scientific');
     expect(engine.getTelemetry().mode).toBe('scientific');
