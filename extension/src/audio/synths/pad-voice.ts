@@ -124,6 +124,32 @@ export class PadVoice {
     this.filter.frequency.setTargetAtTime(Math.min(12000, targetCutoff), now, timeConstant);
   }
 
+  /**
+   * Updates regional voices with specific chord MIDI notes across the 4 rows.
+   */
+  updateChord(
+    chordMidis: [number, number, number, number],
+    rowEnergies: number[],
+    masterPadGain: number,
+    timeConstant = 0.08
+  ): void {
+    const now = this.ctx.currentTime;
+    const safeMasterGain = Math.max(0, Math.min(0.55, masterPadGain * 0.5));
+    this.masterGain.gain.setTargetAtTime(safeMasterGain, now, timeConstant);
+
+    for (let i = 0; i < 4; i++) {
+      const voice = this.voices[i];
+      const energy = rowEnergies[i] ?? 0.2;
+      const targetFreq = midiToFrequency(chordMidis[i]);
+      voice.osc.frequency.setTargetAtTime(targetFreq, now, timeConstant);
+      const voiceGain = Math.max(0.02, Math.min(0.40, energy * 0.5 + 0.05));
+      voice.gain.gain.setTargetAtTime(voiceGain, now, timeConstant);
+    }
+
+    const targetCutoff = 600 + masterPadGain * 1800;
+    this.filter.frequency.setTargetAtTime(Math.min(12000, targetCutoff), now, timeConstant);
+  }
+
   fadeTo(targetGain: number, duration = 0.1): void {
     const now = this.ctx.currentTime;
     this.masterGain.gain.setTargetAtTime(Math.max(0, targetGain), now, duration / 3);

@@ -21,7 +21,7 @@ import type {
   SonificationMode
 } from './types';
 import { PRESET_AUDIO_PROFILES, getAudioProfile } from './profiles';
-import { mapContinuousFrequency, quantizeToScale } from './scales';
+import { mapContinuousFrequency, quantizeToScale, midiToFrequency } from './scales';
 import { FrameMetricsSmoother } from './smoother';
 import { calculateSpatialDistribution } from './spatial';
 import { LeadVoice } from './synths/base-voice';
@@ -35,6 +35,7 @@ import { TanpuraVoice } from './synths/tanpura-voice';
 import { TablaVoice } from './synths/tabla-voice';
 import { IndianMelodicVoice } from './synths/raaga-lead';
 import { getRaagaForDataset, getTaalaForDataset } from './raagas';
+import { generateSongForMedia, type SongStructure } from './song';
 
 export class EarthJukeboxAudioEngine {
   private ctx: AudioContext | null = null;
@@ -60,9 +61,14 @@ export class EarthJukeboxAudioEngine {
   private isRunning = false;
   private isMuted = false;
   private masterVolume = 0.8;
-  private currentMode: SonificationMode = 'raaga';
+  private currentMode: SonificationMode = 'song';
   private activeProfile: PresetAudioProfile = PRESET_AUDIO_PROFILES['gedi-forest-height'];
   private smoother = new FrameMetricsSmoother(220);
+
+  // Earth Song State
+  private currentSong: SongStructure | null = null;
+  private currentSongVizId = '';
+  private lastBeatIndex = -1;
 
   private eventsTriggeredCount = 0;
   private lastTelemetry: AudioTelemetry = {
@@ -309,7 +315,50 @@ export class EarthJukeboxAudioEngine {
     const rootMidi = 48 + semitone;
     let currentSwaraName: string | undefined = undefined;
 
-    if (this.currentMode === 'raaga') {
+    if (this.currentMode === 'song') {
+      if (activeVizId !== this.currentSongVizId || !this.currentSong) {
+        this.currentSong = generateSongForMedia(activeVizId, metrics.hue);
+        this.currentSongVizId = activeVizId;
+        this.lastBeatIndex = -1;
+      }
+
+      const song = this.currentSong;
+      const t = payload.t > 0 ? payload.t : (performance.now() / 1000);
+      const effectiveBpm = song.baseBpm + (metrics.motion * 20);
+      const secondsPerBeat = 60 / effectiveBpm;
+      const secondsPerBar = secondsPerBeat * 4;
+      const barIndex = Math.floor(t / secondsPerBar) % song.chordProgression.length;
+      const activeChord = song.chordProgression[barIndex];
+      const beatIndex = Math.floor((t % secondsPerBar) / secondsPerBeat) % 4;
+
+      // Synchronized musical beat pulse
+      if (beatIndex !== this.lastBeatIndex) {
+        this.lastBeatIndex = beatIndex;
+        if (this.percussionVoice) {
+          if (beatIndex === 0) {
+            this.percussionVoice.triggerBeat('kick', 0.55 + metrics.motion * 0.45, this.masterVolume);
+            if (this.bassVoice) {
+              this.bassVoice.pulse(midiToFrequency(activeChord.bassMidi), 0.45, 0.25);
+            }
+          } else if (beatIndex === 2) {
+            this.percussionVoice.triggerBeat('snare', 0.38 + metrics.motion * 0.40, this.masterVolume);
+          } else {
+            this.percussionVoice.triggerBeat('hihat', 0.22 + metrics.motion * 0.35, this.masterVolume);
+          }
+        }
+      }
+
+      // Map primary metric smoothly into the song's lyrical scale
+      const scaleIndex = Math.min(
+        song.scaleNotes.length - 1,
+        Math.floor(primaryMetricValue * song.scaleNotes.length)
+      );
+      targetFrequency = midiToFrequency(song.scaleNotes[scaleIndex]);
+
+      // Mute raaga voices
+      if (this.tanpuraVoice) this.tanpuraVoice.stop();
+      if (this.raagaMelodicVoice) this.raagaMelodicVoice.silence();
+    } else if (this.currentMode === 'raaga') {
       // 1. Classical Indian Tanpura Drone (Sa-Pa fundamental acoustic resonance)
       if (this.tanpuraVoice) {
         this.tanpuraVoice.setRootMidi(rootMidi, raaga.swaras.includes('M') && !raaga.swaras.includes('P'));
@@ -407,23 +456,48 @@ export class EarthJukeboxAudioEngine {
 
     // 6b. Update Sub-Bass Anchor Voice (35 Hz - 150 Hz physical foundation)
     if (this.bassVoice) {
-      const bassFreq = mapContinuousFrequency(
-        primaryMetricValue,
-        Math.max(35, this.activeProfile.baseFrequency * 0.5),
-        Math.min(150, this.activeProfile.baseFrequency),
-        'log'
-      );
-      const bassGain = Math.max(0.12, Math.min(0.50, 0.20 + metrics.brightness * 0.28));
-      const bassCutoff = 110 + metrics.motion * 250;
-      this.bassVoice.update(bassFreq, bassGain, bassCutoff, 0.08);
+      if (this.currentMode === 'song' && this.currentSong) {
+        const t = payload.t > 0 ? payload.t : (performance.now() / 1000);
+        const effectiveBpm = this.currentSong.baseBpm + (metrics.motion * 20);
+        const secondsPerBar = (60 / effectiveBpm) * 4;
+        const barIndex = Math.floor(t / secondsPerBar) % this.currentSong.chordProgression.length;
+        const activeChord = this.currentSong.chordProgression[barIndex];
+        const bassFreq = midiToFrequency(activeChord.bassMidi);
+        const bassGain = Math.max(0.15, Math.min(0.55, 0.22 + metrics.brightness * 0.28));
+        const bassCutoff = 130 + metrics.motion * 240;
+        this.bassVoice.update(bassFreq, bassGain, bassCutoff, 0.08);
+      } else {
+        const bassFreq = mapContinuousFrequency(
+          primaryMetricValue,
+          Math.max(35, this.activeProfile.baseFrequency * 0.5),
+          Math.min(150, this.activeProfile.baseFrequency),
+          'log'
+        );
+        const bassGain = Math.max(0.12, Math.min(0.50, 0.20 + metrics.brightness * 0.28));
+        const bassCutoff = 110 + metrics.motion * 250;
+        this.bassVoice.update(bassFreq, bassGain, bassCutoff, 0.08);
 
-      if (metrics.motion > 0.15 || (events && events.length > 0)) {
-        this.bassVoice.pulse(bassFreq, 0.42, 0.3);
+        if (metrics.motion > 0.15 || (events && events.length > 0)) {
+          this.bassVoice.pulse(bassFreq, 0.42, 0.3);
+        }
       }
     }
 
-    // 7. Update Regional Ambient Pad (4 latitudinal rows) - silenced in Raaga mode to maintain acoustic purity
-    if (this.currentMode !== 'raaga') {
+    // 7. Update Regional Ambient Pad (4 latitudinal rows)
+    if (this.currentMode === 'song' && this.currentSong) {
+      const t = payload.t > 0 ? payload.t : (performance.now() / 1000);
+      const effectiveBpm = this.currentSong.baseBpm + (metrics.motion * 20);
+      const secondsPerBar = (60 / effectiveBpm) * 4;
+      const barIndex = Math.floor(t / secondsPerBar) % this.currentSong.chordProgression.length;
+      const activeChord = this.currentSong.chordProgression[barIndex];
+      const padPresence = 0.16 + metrics.brightness * 0.34;
+      this.padVoice.updateChord(
+        activeChord.padMidis,
+        spatial.rowEnergies,
+        padPresence,
+        0.08
+      );
+    } else if (this.currentMode !== 'raaga') {
       const padPresence = 0.1 + metrics.brightness * 0.4;
       this.padVoice.update(
         spatial.rowEnergies,
@@ -460,18 +534,27 @@ export class EarthJukeboxAudioEngine {
     }
 
     // 10. Record Telemetry
+    const effectiveBpm = this.currentSong ? Math.round(this.currentSong.baseBpm + (metrics.motion * 20)) : 80;
+    const barIdx = this.currentSong && payload.t > 0 ? Math.floor(payload.t / ((60 / effectiveBpm) * 4)) % this.currentSong.chordProgression.length : 0;
+    const currentChordName = this.currentSong ? this.currentSong.chordProgression[barIdx]?.name : undefined;
+
     this.lastTelemetry = {
       leadFrequency: Math.round(smoothedFreq),
       leadGain: parseFloat(smoothedGain.toFixed(3)),
       pan: parseFloat(smoothedPan.toFixed(3)),
       filterCutoff: Math.round(smoothedCutoff),
-      activeVoices: this.currentMode === 'raaga' ? 7 : 6, // Tanpura (4) + Tabla (2) + Lead (1)
+      activeVoices: this.currentMode === 'raaga' ? 7 : 6,
       eventsTriggered: this.eventsTriggeredCount,
       mode: this.currentMode,
       vizId: activeVizId,
       raagaName: raaga.name,
       taalaName: taala.name,
-      currentSwara: currentSwaraName
+      currentSwara: currentSwaraName,
+      songTitle: this.currentSong?.title,
+      songKey: this.currentSong?.keyName,
+      songScale: this.currentSong?.scaleName,
+      songBpm: effectiveBpm,
+      currentChord: currentChordName
     };
   }
 

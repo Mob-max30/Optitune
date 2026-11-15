@@ -17,12 +17,12 @@ const srAnnouncer = document.getElementById('srAnnouncer') as HTMLDivElement;
 const presetSelect = document.getElementById('presetSelect') as HTMLSelectElement;
 const presetDescription = document.getElementById('presetDescription') as HTMLParagraphElement;
 const soundLegendText = document.getElementById('soundLegendText') as HTMLDivElement;
-const modeSelect = document.getElementById('modeSelect') as HTMLSelectElement;
 const volumeRange = document.getElementById('volumeRange') as HTMLInputElement;
 
-const raagaNameDisplay = document.getElementById('raagaNameDisplay') as HTMLSpanElement | null;
-const taalaNameDisplay = document.getElementById('taalaNameDisplay') as HTMLSpanElement | null;
-const swaraDisplay = document.getElementById('swaraDisplay') as HTMLElement | null;
+const songTitleDisplay = document.getElementById('songTitleDisplay') as HTMLSpanElement | null;
+const songKeyDisplay = document.getElementById('songKeyDisplay') as HTMLSpanElement | null;
+const songBpmBadge = document.getElementById('songBpmBadge') as HTMLSpanElement | null;
+const songChordDisplay = document.getElementById('songChordDisplay') as HTMLSpanElement | null;
 
 const metricLuma = document.getElementById('metricLuma') as HTMLSpanElement;
 const meterLumaBar = document.getElementById('meterLumaBar') as HTMLDivElement;
@@ -191,18 +191,17 @@ function fetchStatus(): void {
       renderMappingProfile(res.mappingProfile);
     }
 
-    if (res.mode && modeSelect.value !== res.mode) {
-      modeSelect.value = res.mode;
+    if (res.telemetry?.songTitle && songTitleDisplay) {
+      songTitleDisplay.textContent = res.telemetry.songTitle;
     }
-
-    if (res.telemetry?.raagaName && raagaNameDisplay) {
-      raagaNameDisplay.textContent = `Raaga: ${res.telemetry.raagaName}`;
+    if (res.telemetry?.songKey && songKeyDisplay) {
+      songKeyDisplay.textContent = `Key: ${res.telemetry.songKey} · ${res.telemetry.songScale || ''}`;
     }
-    if (res.telemetry?.taalaName && taalaNameDisplay) {
-      taalaNameDisplay.textContent = res.telemetry.taalaName;
+    if (res.telemetry?.songBpm && songBpmBadge) {
+      songBpmBadge.textContent = `${res.telemetry.songBpm} BPM`;
     }
-    if (res.telemetry?.currentSwara && swaraDisplay) {
-      swaraDisplay.textContent = res.telemetry.currentSwara;
+    if (res.telemetry?.currentChord && songChordDisplay) {
+      songChordDisplay.textContent = `Chord: ${res.telemetry.currentChord}`;
     }
 
     if (res.lastPayload) {
@@ -233,14 +232,6 @@ function setupEvents(): void {
         );
         announce(res.extensionEnabled ? 'Auto-sonification enabled.' : 'Auto-sonification disabled.');
       }
-    });
-  });
-
-  modeSelect.addEventListener('change', () => {
-    if (!activeTabId) return;
-    const mode = modeSelect.value;
-    chrome.tabs.sendMessage(activeTabId, { type: 'SET_MODE', mode }, () => {
-      announce(`Sonification mode set to ${mode}.`);
     });
   });
 

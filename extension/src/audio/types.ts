@@ -6,7 +6,7 @@
 
 import type { EjbFramePayload, PresetConfig } from '../contract/types';
 
-export type SonificationMode = 'scientific' | 'artistic' | 'scanner' | 'raaga';
+export type SonificationMode = 'song' | 'scientific' | 'artistic' | 'scanner' | 'raaga';
 
 export type MusicalScaleName =
   | 'pentatonic-major'
@@ -47,6 +47,11 @@ export interface AudioTelemetry {
   scaleName?: string;
   grooveName?: string;
   motifName?: string;
+  songTitle?: string;
+  songKey?: string;
+  songScale?: string;
+  songBpm?: number;
+  currentChord?: string;
 }
 
 export interface PresetAudioProfile {

@@ -81,4 +81,78 @@ export class PercussionVoice {
       }
     }, 120);
   }
+
+  /**
+   * Triggers a musical drum beat element (kick, snare, hihat) for song accompaniment.
+   */
+  triggerBeat(type: 'kick' | 'snare' | 'hihat', intensity = 0.5, masterVolume = 1.0): void {
+    const now = this.ctx.currentTime;
+    const gain = Math.max(0.01, Math.min(0.65, intensity * masterVolume * 0.45));
+
+    if (type === 'kick') {
+      const osc = this.ctx.createOscillator();
+      const gainNode = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(140, now);
+      osc.frequency.exponentialRampToValueAtTime(36, now + 0.08);
+
+      gainNode.gain.setValueAtTime(gain * 1.3, now);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+      osc.connect(gainNode);
+      gainNode.connect(this.destination);
+      osc.start(now);
+      osc.stop(now + 0.13);
+      setTimeout(() => {
+        try { osc.disconnect(); gainNode.disconnect(); } catch {}
+      }, 150);
+    } else if (type === 'snare') {
+      const osc = this.ctx.createOscillator();
+      const filter = this.ctx.createBiquadFilter();
+      const gainNode = this.ctx.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(190, now);
+      osc.frequency.exponentialRampToValueAtTime(80, now + 0.05);
+
+      filter.type = 'highpass';
+      filter.frequency.setValueAtTime(350, now);
+
+      gainNode.gain.setValueAtTime(gain * 0.85, now);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+
+      osc.connect(filter);
+      filter.connect(gainNode);
+      gainNode.connect(this.destination);
+      osc.start(now);
+      osc.stop(now + 0.10);
+      setTimeout(() => {
+        try { osc.disconnect(); filter.disconnect(); gainNode.disconnect(); } catch {}
+      }, 120);
+    } else {
+      // Hi-hat / tick
+      const osc = this.ctx.createOscillator();
+      const filter = this.ctx.createBiquadFilter();
+      const gainNode = this.ctx.createGain();
+
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(7500, now);
+
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(6500, now);
+      filter.Q.setValueAtTime(4, now);
+
+      gainNode.gain.setValueAtTime(gain * 0.35, now);
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 0.04);
+
+      osc.connect(filter);
+      filter.connect(gainNode);
+      gainNode.connect(this.destination);
+      osc.start(now);
+      osc.stop(now + 0.045);
+      setTimeout(() => {
+        try { osc.disconnect(); filter.disconnect(); gainNode.disconnect(); } catch {}
+      }, 80);
+    }
+  }
 }

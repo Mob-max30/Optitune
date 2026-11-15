@@ -40,7 +40,8 @@ const volumeSlider = document.getElementById('volumeSlider') as HTMLInputElement
 const demoPresetSelect = document.getElementById('demoPresetSelect') as HTMLSelectElement;
 const demoPresetDescription = document.getElementById('demoPresetDescription') as HTMLParagraphElement;
 const demoSoundLegend = document.getElementById('demoSoundLegend') as HTMLDivElement;
-const demoModeSelect = document.getElementById('demoModeSelect') as HTMLSelectElement;
+const demoSongTitle = document.getElementById('demoSongTitle') as HTMLSpanElement | null;
+const demoSongBadge = document.getElementById('demoSongBadge') as HTMLSpanElement | null;
 const audioStatusBadge = document.getElementById('audioStatusBadge') as HTMLSpanElement;
 
 // Dashboard Value Elements
@@ -78,7 +79,7 @@ const cellBaselines = new Float32Array(64).fill(0.1);
 
 // Earth Jukebox Sonification Audio Engine (Pranav K)
 const audioEngine = new EarthJukeboxAudioEngine({
-  mode: 'raaga',
+  mode: 'song',
   masterVolume: 0.7
 });
 const autonomousAdapter = new AutonomousAudioEngineAdapter(audioEngine);
@@ -446,6 +447,15 @@ function updateDashboard(p: EjbFramePayload): void {
 
   // Raw JSON Inspector
   jsonPayloadView.textContent = JSON.stringify(p, null, 2);
+
+  // Update Live Earth Song display
+  const tel = audioEngine.getTelemetry();
+  if (demoSongTitle && tel.songTitle) {
+    demoSongTitle.textContent = tel.songTitle;
+  }
+  if (demoSongBadge && tel.songKey) {
+    demoSongBadge.textContent = `Key: ${tel.songKey} · ${tel.songBpm || 80} BPM · Chord: ${tel.currentChord || '--'}`;
+  }
 }
 
 // -------------------------------------------------------------
@@ -579,10 +589,6 @@ function setupEventListeners(): void {
 
   volumeSlider.addEventListener('input', () => {
     audioEngine.setMasterVolume(parseFloat(volumeSlider.value));
-  });
-
-  demoModeSelect.addEventListener('change', () => {
-    audioEngine.setMode(demoModeSelect.value as SonificationMode);
   });
 
   demoPresetSelect.addEventListener('change', () => {

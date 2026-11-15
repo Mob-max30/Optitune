@@ -18,7 +18,7 @@ import type { ScientificFeatureFrame } from '../sfr/types';
 import type { MappingProfile } from '../semantic/types';
 
 function isSonificationMode(val: unknown): val is SonificationMode {
-  return val === 'scientific' || val === 'artistic' || val === 'scanner' || val === 'raaga';
+  return val === 'song' || val === 'scientific' || val === 'artistic' || val === 'scanner' || val === 'raaga';
 }
 
 class EarthJukeboxController {
@@ -29,7 +29,7 @@ class EarthJukeboxController {
   private emitter = new EjbEmitter();
   private mediaFinder: MediaFinder;
   private capturePipeline: FrameCapturePipeline | null = null;
-  private audioEngine = new EarthJukeboxAudioEngine({ mode: 'raaga' });
+  private audioEngine = new EarthJukeboxAudioEngine({ mode: 'song' });
   private autonomousAdapter = new AutonomousAudioEngineAdapter(this.audioEngine);
   private sascAdapter = new SascAudioEngineAdapter(this.audioEngine);
 
@@ -76,14 +76,16 @@ class EarthJukeboxController {
       if (isSonificationMode(items.activeMode)) {
         this.audioEngine.setMode(items.activeMode);
       } else {
-        this.audioEngine.setMode('raaga');
-        chrome.storage.local.set({ activeMode: 'raaga' });
+        this.audioEngine.setMode('song');
+        chrome.storage.local.set({ activeMode: 'song' });
       }
 
-      // If a video is already playing right now on page load, start sonification immediately
+      // Strictly ensure sound ONLY plays when a video is actively playing
       const media = this.mediaFinder.getActiveMedia();
       if (this.extensionEnabled && media instanceof HTMLVideoElement && !media.paused && !media.ended) {
         this.startAutoSonification(media);
+      } else {
+        this.pauseSonification();
       }
     });
 
@@ -196,18 +198,19 @@ class EarthJukeboxController {
   }
 
   private setupUserGestureUnlock(): void {
-    // Unlocks and prepares the AudioContext on any user interaction (pointerdown, click, or keyboard)
-    // so sound starts with absolute ZERO latency as soon as the video plays
-    const unlockAudio = () => {
-      if (this.extensionEnabled && this.audioEngine) {
-        this.audioEngine.start().then(() => {
-          this.audioEngine.resume();
-        }).catch(() => {});
+    // Intercept clicks specifically on video elements or their player containers
+    // so clicking a video immediately triggers playback and sonification
+    window.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement | null;
+      if (target) {
+        const video = target instanceof HTMLVideoElement ? target : target.closest('video');
+        if (video && this.extensionEnabled) {
+          if (video.paused) {
+            video.play().catch(() => {});
+          }
+        }
       }
-    };
-    window.addEventListener('pointerdown', unlockAudio, { capture: true, passive: true });
-    window.addEventListener('click', unlockAudio, { capture: true, passive: true });
-    window.addEventListener('keydown', unlockAudio, { capture: true, passive: true });
+    }, { capture: true, passive: true });
   }
 
   private setupListeners(): void {
@@ -348,14 +351,12 @@ class EarthJukeboxController {
   }
 
   private pauseSonification(): void {
-    if (this.isSonifying) {
-      this.audioEngine.pause();
-      if (this.capturePipeline) {
-        this.capturePipeline.stop();
-      }
-      this.isSonifying = false;
-      this.updateBadge(false);
+    this.audioEngine.pause();
+    if (this.capturePipeline) {
+      this.capturePipeline.stop();
     }
+    this.isSonifying = false;
+    this.updateBadge(false);
   }
 
   private updateBadge(isActive: boolean): void {
@@ -371,9 +372,22 @@ class EarthJukeboxController {
     this.detectPresetForMedia(media);
     this.emitReadyEvent(media);
 
+    if (media instanceof HTMLVideoElement) {
+      // Toggle play/pause when user clicks the video
+      media.addEventListener('click', () => {
+        if (media.paused) {
+          media.play().catch(() => {});
+        } else {
+          media.pause();
+        }
+      });
+    }
+
     const isPlaying = media instanceof HTMLVideoElement ? !media.paused && !media.ended : false;
     if (this.extensionEnabled && isPlaying) {
       this.startAutoSonification(media);
+    } else {
+      this.pauseSonification();
     }
   }
 
