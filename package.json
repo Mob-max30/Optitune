@@ -9,6 +9,7 @@
     "build:demo": "vite build -c demo-page/vite.config.ts",
     "build": "npm run build:extension && npm run build:demo",
     "test": "vitest run",
+    "print:distinctness": "vitest run test/distinctness-harness.test.ts",
     "package": "node scripts/package.js"
   },
   "repository": {

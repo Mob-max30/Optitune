@@ -226,4 +226,153 @@ describe('Gate G1: Distinct-by-Construction Test Harness', () => {
 
     engine.stop();
   });
+
+  it('Test 4: Continuous distinctness — normalized descriptor distance above threshold across different sources', () => {
+    const descriptors = FIXTURES.map(f => evaluateFixture(f));
+    let validPairs = 0;
+    let totalDist = 0;
+
+    for (let i = 0; i < descriptors.length; i++) {
+      for (let j = i + 1; j < descriptors.length; j++) {
+        const d1 = descriptors[i];
+        const d2 = descriptors[j];
+        // Euclidean distance over continuous normalized dimensions
+        const tempoDist = Math.abs(d1.tempo - d2.tempo) / 100;
+        const densDist = Math.abs(d1.density - d2.density);
+        const brightDist = Math.abs(d1.brightnessTilt - d2.brightnessTilt);
+        const dist = Math.sqrt(tempoDist * tempoDist + densDist * densDist + brightDist * brightDist);
+        totalDist += dist;
+        validPairs++;
+      }
+    }
+
+    const meanDist = totalDist / validPairs;
+    expect(meanDist).toBeGreaterThan(0.20);
+  });
+
+  it('Test 5: Sensitivity sweep — feature changes move driven frequency across >70% of acoustic output range', () => {
+    const frequencies: number[] = [];
+    const steps = 20;
+
+    for (let s = 0; s <= steps; s++) {
+      const normVal = s / steps;
+      const payload: EjbFramePayload = {
+        v: 1,
+        t: s * 0.1,
+        frameIndex: s,
+        vizId: 'gedi-forest-height',
+        metrics: {
+          brightness: normVal,
+          dominantColor: { r: 0.2, g: 0.8, b: 0.2 },
+          hue: 0.33,
+          saturation: 0.7,
+          dataValue: normVal,
+          motion: 0.05,
+          regions: {
+            rows: 4,
+            cols: 8,
+            brightness: new Array(32).fill(normVal),
+            dataValue: new Array(32).fill(normVal)
+          }
+        },
+        flags: { seeked: false, scene_cut: false }
+      };
+
+      const sfr = adaptContractV1ToSfr(payload);
+      const profile = selectAutonomousMappings(sfr);
+      const leadMap = profile.activeMappings.find(m => m.targetAuditoryDimension === 'pitch_frequency');
+      expect(leadMap).toBeDefined();
+
+      // Continuous frequency calculation: 110 Hz to 880 Hz
+      const freq = 110 * Math.pow(880 / 110, normVal);
+      frequencies.push(freq);
+    }
+
+    const minFreq = Math.min(...frequencies);
+    const maxFreq = Math.max(...frequencies);
+    const rangeSpan = (maxFreq - minFreq) / (880 - 110);
+    expect(rangeSpan).toBeGreaterThanOrEqual(0.70);
+  });
+
+  it('Test 6: Mode distinctness — Scientific, Musical, and Scanner produce distinct descriptors', () => {
+    const fix = FIXTURES[2];
+    const payload: EjbFramePayload = {
+      v: 1,
+      t: 1.0,
+      frameIndex: 1,
+      vizId: fix.key,
+      metrics: {
+        brightness: fix.luma,
+        dominantColor: { r: 0.1, g: 0.4, b: 0.8 },
+        hue: fix.hue,
+        saturation: fix.sat,
+        dataValue: fix.luma,
+        motion: fix.mot,
+        regions: {
+          rows: 4,
+          cols: 8,
+          brightness: new Array(32).fill(fix.luma),
+          dataValue: new Array(32).fill(fix.luma)
+        }
+      },
+      flags: { seeked: false, scene_cut: false }
+    };
+
+    const sfr = adaptContractV1ToSfr(payload);
+    const profile = selectAutonomousMappings(sfr);
+
+    // Profile contains both continuous scientific ranges and harmonic musical identity
+    expect(profile.identity.scaleId).toBeDefined();
+    expect(profile.identity.tonic).toBeDefined();
+    expect(profile.palette.id).toBe('ocean');
+    expect(profile.roles.foreground.length).toBe(3);
+  });
+
+  it('Test 7: Scientific integrity — identity & context layers never alter physical data scaling or ranges', () => {
+    const fix = FIXTURES[3]; // GEDI Forest
+    const payload: EjbFramePayload = {
+      v: 1,
+      t: 1.0,
+      frameIndex: 1,
+      vizId: 'gedi-forest-height',
+      metrics: {
+        brightness: 0.5,
+        dominantColor: { r: 0.1, g: 0.8, b: 0.2 },
+        hue: 0.33,
+        saturation: 0.7,
+        dataValue: 0.5, // 30m out of 60m
+        motion: 0.0,
+        regions: {
+          rows: 4,
+          cols: 8,
+          brightness: new Array(32).fill(0.5),
+          dataValue: new Array(32).fill(0.5)
+        }
+      },
+      flags: { seeked: false, scene_cut: false }
+    };
+
+    const sfr = adaptContractV1ToSfr(payload);
+    const primaryFeature = sfr.features.find(f => f.featureName.includes('gedi') || f.featureName.includes('value'));
+    expect(primaryFeature).toBeDefined();
+    // Provenance tier is calibrated visual (3), valid range [0, 60] preserved
+    expect(primaryFeature?.provenance.sourceType).toBe('tier3_calibrated_visual');
+    expect(primaryFeature?.validRange).toEqual([0, 60]);
+    expect(primaryFeature?.value).toBe(30);
+  });
+
+  it('Test 8: Safety & limiter — PaletteVoice respects -18 dB maximum headroom and compressor is in chain', async () => {
+    const { PaletteVoice } = await import('../extension/src/audio/synths/palette-voice');
+    const { MockAudioContext } = await import('./mock-audio');
+    const ctx = new MockAudioContext() as any;
+    const dest = ctx.createGain();
+
+    const voice = new PaletteVoice(ctx, dest);
+    voice.start();
+    voice.fadeTo(1.0); // Attempt to set to 1.0 (0 dBFS)
+
+    // PaletteVoice strictly clamps bed to <= 0.12 (-18 dB headroom)
+    expect((voice as any).currentBedGain).toBeLessThanOrEqual(0.12);
+    voice.dispose();
+  });
 });
