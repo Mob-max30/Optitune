@@ -47,7 +47,14 @@ export class AutonomousSemanticSelector {
     const timestamp = frame.timestamp || 0;
     const isSceneCut = Boolean(frame.metadata?.sceneCut || frame.metadata?.scene_cut);
 
-    // Extract feature list
+    // ── Distinct-by-Construction: datasetId may be "<presetId>:<hash>" ──────
+    // Extract the phenomenon class from the prefix (before the colon) so that
+    // palette/scale selection remains scientifically correct, while the full
+    // datasetId (including the unique hash suffix) drives identity uniqueness.
+    const colonIdx = datasetId.indexOf(':');
+    const phenomenonClass = frame.metadata?.phenomenonClass
+      || (colonIdx > 0 ? datasetId.slice(0, colonIdx) : datasetId);
+    // ────────────────────────────────────────────────────────────────────────
     let featureList: Array<ScientificFeature | any> = [];
     if (Array.isArray(frame.features)) {
       featureList = frame.features;
@@ -58,8 +65,6 @@ export class AutonomousSemanticSelector {
     if (featureList.length === 0) {
       return buildEmptySilentProfile(datasetId);
     }
-
-    const phenomenonClass = frame.metadata?.phenomenonClass || datasetId;
 
     // 1. A2 Reference-Relative Normalization & Z-Scores
     const normalizedFeatures: Array<{

@@ -45,6 +45,10 @@ class EarthJukeboxController {
   private currentT = 0;
   private currentFrameIndex = 0;
 
+  // Per-video unique identity seed: derived from actual media URL so every distinct video gets its own sound
+  private activeMediaSourceId = '';
+  private activeMediaSrc = '';
+
   constructor() {
     this.activePreset = PRESETS['general-earth'] || PRESETS['gedi-forest-height'];
     this.mediaFinder = new MediaFinder({
@@ -161,6 +165,34 @@ class EarthJukeboxController {
         tickHz: preset.tickHz
       });
     }
+  }
+
+  /**
+   * Computes a stable, unique media source ID from the actual video URL.
+   * This ensures every distinct video gets its own identity hash regardless of preset.
+   * Format: "<presetId>:<fnv32hex>" — the preset prefix keeps phenomenon-class context,
+   * the 8-hex hash suffix uniquifies it per video URL.
+   */
+  private computeMediaSourceId(media: TrackedMedia | null): string {
+    let raw = '';
+    if (media instanceof HTMLVideoElement) {
+      raw = media.currentSrc || media.src || '';
+      if (!raw) raw = media.getAttribute('poster') || '';
+      if (!raw) {
+        const src0 = media.querySelector('source');
+        if (src0) raw = src0.src || src0.getAttribute('src') || '';
+      }
+    }
+    // Seed from actual media URL + page path so same CDN file on different pages is distinct
+    const seed = raw ? raw + '|' + window.location.pathname : window.location.href;
+    // FNV-1a 32-bit (mirrors signature.ts — no import needed here)
+    let h = 0x811c9dc5;
+    for (let i = 0; i < seed.length; i++) {
+      h ^= seed.charCodeAt(i);
+      h = Math.imul(h, 0x01000193);
+    }
+    const hash = (h >>> 0).toString(16).padStart(8, '0');
+    return `${this.activePreset?.id ?? 'general-earth'}:${hash}`;
   }
 
   private setupUserGestureUnlock(): void {
@@ -291,6 +323,20 @@ class EarthJukeboxController {
     if (!this.manualPresetOverride) {
       this.detectPresetForMedia(media);
     }
+
+    // ── Distinct-by-Construction: compute unique sourceId per video ──────────
+    const newSrc = (media instanceof HTMLVideoElement)
+      ? (media.currentSrc || media.src || '')
+      : window.location.href;
+    if (newSrc !== this.activeMediaSrc) {
+      this.activeMediaSrc = newSrc;
+      this.activeMediaSourceId = this.computeMediaSourceId(media);
+      // Reset profile so the new sourceId triggers a fresh identity build
+      this.autonomousAdapter.resetProfile();
+      this.lastMappingProfile = null;
+    }
+    // ────────────────────────────────────────────────────────────────────────
+
     await this.audioEngine.start();
     this.audioEngine.resume();
     if (this.activePreset) {
@@ -478,7 +524,12 @@ class EarthJukeboxController {
       v: 1,
       t: round3(frame.t),
       frameIndex: frame.frameIndex,
-      vizId: preset?.id ?? 'custom',
+      // ── Distinct-by-Construction: use per-video unique sourceId as vizId ──
+      // activeMediaSourceId = "<presetId>:<fnv32hex>" — unique per actual video URL.
+      // The SFR adapter reads payload.vizId as frame.sourceId, which the selector
+      // uses as the identity hash key.  Using preset.id here caused ALL videos
+      // that map to the same preset (e.g. 'general-earth') to get identical sounds.
+      vizId: this.activeMediaSourceId || (preset?.id ?? 'custom'),
       metrics: {
         brightness,
         dominantColor: colorMetrics.dominantColor,
