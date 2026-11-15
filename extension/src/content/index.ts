@@ -505,9 +505,9 @@ class EarthJukeboxController {
     // 2. Dispatch custom DOM event on window (Preserving Contract v1 compatibility)
     this.emitter.emitFrame(payload);
 
-    // 3. Drive Web Audio synthesis through SASC (Scientific Auditory Scene Compiler)
+    // 3. Drive Web Audio synthesis through Autonomous Distinct-by-Construction Sonification Adapter
     if (this.isSonifying) {
-      this.sascAdapter.processScientificFrame(sfrFrame);
+      this.autonomousAdapter.processScientificFrame(sfrFrame);
       this.lastMappingProfile = this.autonomousAdapter.getActiveProfile();
     }
 

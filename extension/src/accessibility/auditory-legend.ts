@@ -62,7 +62,7 @@ export function generateAriaAnnouncement(profile: MappingProfile): string {
  * Generates accessible HTML markup suitable for side panels or accessibility modals.
  */
 export function generateStructuredLegendHtml(profile: MappingProfile): string {
-  if (profile.isSilent || profile.auditoryLegend.length === 0) {
+  if (profile.isSilent || (profile.auditoryLegend.length === 0 && !profile.palette)) {
     return `
       <div class="ejb-legend ejb-legend-silent" role="region" aria-label="Auditory Legend">
         <h3>Auditory Legend</h3>
@@ -71,26 +71,62 @@ export function generateStructuredLegendHtml(profile: MappingProfile): string {
     `.trim();
   }
 
+  // Identity banner (Amendment A Step 13)
+  let identityHtml = '';
+  if (profile.identity) {
+    const tonic = escapeHtml(profile.identity.tonic || 'C3');
+    const scale = escapeHtml(profile.identity.scaleId || 'dorian');
+    const tempo = profile.identity.tempoBase || 80;
+    const groove = escapeHtml((profile.identity.grooveTemplate || '').replace('groove.', ''));
+    const motif = escapeHtml((profile.identity.motifId || '').replace('motif.', ''));
+
+    identityHtml = `
+      <div class="ejb-legend-identity" style="margin-bottom: 6px; padding: 4px 6px; background: rgba(30, 41, 59, 0.7); border-radius: 4px; font-size: 11px;">
+        <span class="ejb-badge ejb-badge-identity" style="background: #8b5cf6; color: white; padding: 1px 4px; border-radius: 3px; font-weight: bold; font-size: 9px; margin-right: 4px;">[IDENTITY]</span>
+        <strong>Signature:</strong> ${tonic} ${scale} · ${tempo} BPM · ${groove} · ${motif}
+      </div>
+    `;
+  }
+
+  // Context sound palette (Amendment A Step 13)
+  let paletteHtml = '';
+  if (profile.palette) {
+    paletteHtml = `
+      <div class="ejb-legend-palette" style="margin-bottom: 6px; padding: 4px 6px; background: rgba(30, 41, 59, 0.7); border-radius: 4px; font-size: 11px;">
+        <span class="ejb-badge ejb-badge-context" style="background: #0ea5e9; color: white; padding: 1px 4px; border-radius: 3px; font-weight: bold; font-size: 9px; margin-right: 4px;">[CONTEXT]</span>
+        <strong>Sound Bed:</strong> ${escapeHtml(profile.palette.id)} (v${profile.palette.variant}) — ${escapeHtml(profile.palette.description)}
+      </div>
+    `;
+  }
+
   const itemsHtml = profile.auditoryLegend
     .map(
-      item => `
-        <li class="ejb-legend-item">
+      item => {
+        const mClass = (item.meaningClass || 'data').toUpperCase();
+        const badgeColor = mClass === 'CONTEXT' ? '#0ea5e9' : mClass === 'IDENTITY' ? '#8b5cf6' : '#10b981';
+
+        return `
+        <li class="ejb-legend-item" style="margin-bottom: 6px;">
           <div class="ejb-legend-header">
+            <span class="ejb-badge" style="background: ${badgeColor}; color: white; padding: 1px 4px; border-radius: 3px; font-weight: bold; font-size: 9px; margin-right: 4px;">[${mClass}]</span>
             <span class="ejb-feature-name"><strong>${escapeHtml(item.featureName)}</strong> (${escapeHtml(item.scientificUnit)})</span>
             <span class="ejb-badge ejb-badge-${escapeHtml(item.targetVoice)}">${escapeHtml(item.targetVoice.replace('_', ' '))}</span>
           </div>
-          <p class="ejb-legend-desc">${escapeHtml(item.verbalDescription)}</p>
+          <p class="ejb-legend-desc" style="margin: 2px 0 1px 0;">${escapeHtml(item.verbalDescription)}</p>
           <small class="ejb-legend-citation"><em>Ref: ${escapeHtml(item.evidenceCitation)}</em></small>
         </li>
-      `
+      `;
+      }
     )
     .join('');
 
   return `
     <div class="ejb-legend" role="region" aria-label="Auditory Legend for ${escapeHtml(profile.name)}">
-      <h3 class="ejb-legend-title">Auditory Legend: ${escapeHtml(profile.name)}</h3>
-      <p class="ejb-legend-intro">${profile.activeMappings.length} scientific channels mapped to Web Audio synthesis:</p>
-      <ul class="ejb-legend-list" role="list">
+      <h3 class="ejb-legend-title" style="margin-top: 0; margin-bottom: 4px;">Auditory Legend: ${escapeHtml(profile.name)}</h3>
+      ${identityHtml}
+      ${paletteHtml}
+      <p class="ejb-legend-intro" style="margin-top: 4px; margin-bottom: 4px;">${profile.activeMappings.length} scientific data channels:</p>
+      <ul class="ejb-legend-list" role="list" style="padding-left: 14px; margin: 0;">
         ${itemsHtml}
       </ul>
     </div>

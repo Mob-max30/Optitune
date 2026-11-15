@@ -78,3 +78,37 @@ Tie-breaking is strictly deterministic: if two candidate mappings produce identi
 - Sorting step: $O(K \log K)$.
 - Greedy conflict check: $O(K \cdot A)$ where $A \le 4$ active assignments.
 - Overall complexity: $\mathcal{O}(K \log K)$, which on standard V8 JavaScript engines executes in **$< 0.2\text{ ms}$**, well under the $5\text{ ms}$ budget and well inside the 60 FPS ($16.6\text{ ms}$) video render cycle.
+
+---
+
+## 6. Amendment A Extensions (Distinct-by-Construction Scoring & Hysteresis)
+
+Under Amendment A, Section A7, candidate scoring is value-aware and incorporates explicit feature salience, diversity bonus, and hysteresis:
+
+### 6.1. Scoring Formula
+$$S(m) = w_1 P(m) + w_2 C(m) + w_3 D(m) + w_4 I(m) + w_6 \text{Sal}(m) + w_7 \text{Div}(m) - w_5 K(m)$$
+
+### 6.2. Weight Distribution
+- $w_1 = 0.20$ (Data Provenance tier)
+- $w_2 = 0.20$ (Literature Confidence)
+- $w_3 = 0.20$ (Crossmodal Directness)
+- $w_4 = 0.15$ (Information content & variance)
+- $w_6 = 0.20$ (Dynamic Value-Aware Salience)
+- $w_7 = 0.05$ (Stream Diversity Bonus)
+- $w_5 = 0.25$ (Auditory Masking & Complexity Penalty)
+
+### 6.3. Value-Aware Salience Ranking
+Salience is computed from reference-relative z-scores ($z_f = (f - \mu)/\sigma$), feature confidence, and novelty:
+$$\text{salience}_f = \text{importance}_f \times |z_f| \times \text{confidence}_f \times (1 + \text{novelty}_f)$$
+
+The top 3 salient features are allocated as **Foreground** roles:
+1. `foreground_1`: Lead voice (pitch modulation)
+2. `foreground_2`: Rhythm voice (pulse tempo, pattern)
+3. `foreground_3`: Tension/texture voice (filter cutoff, resonance, noise)
+
+### 6.4. Hysteresis Stability (Section A8)
+To prevent erratic timbral flipping during continuous video playback:
+- Mapping profiles rebuild on **source load** or on **scene cuts**.
+- During steady playback, candidate evaluation occurs at most once every **12 seconds**.
+- Profile updates require **2 consecutive evaluations** with altered foreground role ranking before switching.
+

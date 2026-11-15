@@ -5,8 +5,12 @@
  * documenting perceptual correspondences, scaling functions, conflict rules,
  * and audio voice allocations.
  *
+ * Updated for Amendment A: Distinct-by-Construction Sonification Algorithm.
  * Authored by Pranav K & Ujwal A.
  */
+
+import type { MeaningClass } from './types';
+import type { PaletteDataSlot } from '../audio/synths/palette-voice';
 
 export type AuditoryDimension =
   | 'pitch_frequency'
@@ -24,6 +28,7 @@ export type TargetVoiceId =
   | 'pad_voice'
   | 'percussion_voice'
   | 'noise_voice'
+  | 'palette_voice'
   | 'scanner_voice';
 
 export type EvidenceLevel =
@@ -39,6 +44,9 @@ export interface SemanticMappingEntry {
   targetVoice: TargetVoiceId;
   scalingFunction: 'linear' | 'logarithmic' | 'exponential' | 'quantized_scale' | 'threshold_trigger';
   evidenceLevel: EvidenceLevel;
+  evidenceClass: EvidenceLevel;      // Amendment A alias
+  meaningClass: MeaningClass;        // Amendment A: data, context, or identity
+  paletteSlot?: PaletteDataSlot;     // Amendment A: which slot on PaletteVoice this maps to
   scientificRationale: string;
   literatureCitation: string;
   conflictsWith: AuditoryDimension[];
@@ -55,6 +63,9 @@ export const MAPPING_KNOWLEDGE_BASE: SemanticMappingEntry[] = [
     targetVoice: 'lead_voice',
     scalingFunction: 'logarithmic',
     evidenceLevel: 'strong_empirical',
+    evidenceClass: 'strong_empirical',
+    meaningClass: 'data',
+    paletteSlot: 'pitch_center',
     scientificRationale: 'Physical elevation and vertical magnitude naturally map to acoustic pitch due to universal crossmodal perceptual elevation bias.',
     literatureCitation: 'Spence, C. (2011). Crossmodal correspondences: A tutorial review. Attention, Perception, & Psychophysics, 73(4), 971-995.',
     conflictsWith: ['pitch_frequency'],
@@ -70,6 +81,9 @@ export const MAPPING_KNOWLEDGE_BASE: SemanticMappingEntry[] = [
     targetVoice: 'lead_voice',
     scalingFunction: 'quantized_scale',
     evidenceLevel: 'moderate_literature',
+    evidenceClass: 'moderate_literature',
+    meaningClass: 'data',
+    paletteSlot: 'pitch_center',
     scientificRationale: 'Sub-zero temperatures map to dissonant minor/Locrian modes, transitioning through Dorian to warm, resonant major keys at tropical temperatures.',
     literatureCitation: 'Walker, B. N. (2002). Magnitude estimation of conceptual associations for sonification. Human Factors, 44(3), 388-400.',
     conflictsWith: ['harmonic_mode'],
@@ -85,6 +99,9 @@ export const MAPPING_KNOWLEDGE_BASE: SemanticMappingEntry[] = [
     targetVoice: 'lead_voice',
     scalingFunction: 'linear',
     evidenceLevel: 'moderate_literature',
+    evidenceClass: 'moderate_literature',
+    meaningClass: 'data',
+    paletteSlot: 'filter_frequency',
     scientificRationale: 'Accumulation of atmospheric greenhouse gases builds harmonic acoustic tension and ascending pitch center.',
     literatureCitation: 'Barrass, S. (1997). Auditory Information Design. PhD Thesis, Australian National University.',
     conflictsWith: ['pitch_frequency'],
@@ -100,21 +117,27 @@ export const MAPPING_KNOWLEDGE_BASE: SemanticMappingEntry[] = [
     targetVoice: 'lead_voice',
     scalingFunction: 'exponential',
     evidenceLevel: 'strong_empirical',
+    evidenceClass: 'strong_empirical',
+    meaningClass: 'data',
+    paletteSlot: 'intensity',
     scientificRationale: 'Optical illumination intensity correlates directly with perceived acoustic energy and amplitude presence.',
     literatureCitation: 'Stevens, S. S. (1975). Psychophysics: Introduction to its perceptual, neural, and social prospects. John Wiley & Sons.',
     conflictsWith: ['amplitude_gain'],
-    verbalDescription: 'Brighter illumination sounds louder and more acoustically present.'
+    verbalDescription: 'Brighter visual regions sound louder and more prominent.'
   },
 
-  // 5. Inter-frame Motion Velocity -> Lowpass Filter Cutoff
+  // 5. Apparent Motion / Optical Flow -> Filter Cutoff (Timbral Brightness)
   {
     mappingId: 'map.velocity.motion_to_filter_cutoff',
     scientificDimension: 'velocity',
-    matchingFeaturePatterns: ['interframe_motion_delta', 'optical_flow', 'fluid_speed'],
+    matchingFeaturePatterns: ['apparent_motion', 'optical_flow', 'motion_delta', 'interframe_motion_delta'],
     targetAuditoryDimension: 'lowpass_cutoff',
     targetVoice: 'lead_voice',
     scalingFunction: 'linear',
     evidenceLevel: 'strong_empirical',
+    evidenceClass: 'strong_empirical',
+    meaningClass: 'data',
+    paletteSlot: 'filter_frequency',
     scientificRationale: 'Rapid fluid movement and atmospheric dynamics naturally correspond to brighter spectral high frequencies (unclamping acoustic damping).',
     literatureCitation: 'Bregman, A. S. (1990). Auditory Scene Analysis: The Perceptual Organization of Sound. MIT Press.',
     conflictsWith: ['lowpass_cutoff'],
@@ -130,6 +153,9 @@ export const MAPPING_KNOWLEDGE_BASE: SemanticMappingEntry[] = [
     targetVoice: 'noise_voice',
     scalingFunction: 'linear',
     evidenceLevel: 'moderate_literature',
+    evidenceClass: 'moderate_literature',
+    meaningClass: 'data',
+    paletteSlot: 'noise_density',
     scientificRationale: 'Mesoscale ocean eddies and atmospheric winds are naturally communicated through filtered pink noise wash.',
     literatureCitation: 'Gaver, W. W. (1993). What in the world do we hear? An ecological approach to auditory event perception. Ecological Psychology, 5(1), 1-29.',
     conflictsWith: ['noise_density'],
@@ -145,6 +171,8 @@ export const MAPPING_KNOWLEDGE_BASE: SemanticMappingEntry[] = [
     targetVoice: 'lead_voice',
     scalingFunction: 'linear',
     evidenceLevel: 'strong_empirical',
+    evidenceClass: 'strong_empirical',
+    meaningClass: 'data',
     scientificRationale: 'Geographic and visual horizontal coordinate maps 1:1 to interaural time and level difference (binaural stereo field).',
     literatureCitation: 'Blauert, J. (1997). Spatial Hearing: The Psychophysics of Human Sound Localization. MIT Press.',
     conflictsWith: ['stereo_pan'],
@@ -160,6 +188,8 @@ export const MAPPING_KNOWLEDGE_BASE: SemanticMappingEntry[] = [
     targetVoice: 'pad_voice',
     scalingFunction: 'quantized_scale',
     evidenceLevel: 'design_hypothesis',
+    evidenceClass: 'design_hypothesis',
+    meaningClass: 'data',
     scientificRationale: 'Splitting the 4 rows of the spatial grid from North to South into Soprano, Alto, Tenor, and Bass registers enables spatial chord harmony.',
     literatureCitation: 'Earth Jukebox Master Architecture (2026). NASA Space Apps Challenge.',
     conflictsWith: ['latitudinal_voicing'],
@@ -175,6 +205,9 @@ export const MAPPING_KNOWLEDGE_BASE: SemanticMappingEntry[] = [
     targetVoice: 'percussion_voice',
     scalingFunction: 'threshold_trigger',
     evidenceLevel: 'strong_empirical',
+    evidenceClass: 'strong_empirical',
+    meaningClass: 'data',
+    paletteSlot: 'pulse_rate',
     scientificRationale: 'Instantaneous optical bursts match ecological sound perception of discrete physical impacts (sharp attack, fast exponential decay).',
     literatureCitation: 'Gaver, W. W. (1993). Synthesizing auditory icons. Proceedings of INTERCHI 1993, 228-235.',
     conflictsWith: ['transient_percussion'],
@@ -190,6 +223,9 @@ export const MAPPING_KNOWLEDGE_BASE: SemanticMappingEntry[] = [
     targetVoice: 'noise_voice',
     scalingFunction: 'linear',
     evidenceLevel: 'design_hypothesis',
+    evidenceClass: 'design_hypothesis',
+    meaningClass: 'data',
+    paletteSlot: 'noise_density',
     scientificRationale: 'Warm, particulate-dense wildfire smoke maps to warm analog sawtooth timbre with 950 Hz bandpass filtering.',
     literatureCitation: 'Earth Jukebox Master Architecture (2026). NASA Space Apps Challenge.',
     conflictsWith: ['noise_density'],
@@ -205,6 +241,9 @@ export const MAPPING_KNOWLEDGE_BASE: SemanticMappingEntry[] = [
     targetVoice: 'noise_voice',
     scalingFunction: 'linear',
     evidenceLevel: 'design_hypothesis',
+    evidenceClass: 'design_hypothesis',
+    meaningClass: 'data',
+    paletteSlot: 'noise_density',
     scientificRationale: 'Dry mineral dust transport maps to resonant filtered pink noise centered at 650 Hz.',
     literatureCitation: 'Earth Jukebox Master Architecture (2026). NASA Space Apps Challenge.',
     conflictsWith: ['noise_density'],
@@ -220,6 +259,8 @@ export const MAPPING_KNOWLEDGE_BASE: SemanticMappingEntry[] = [
     targetVoice: 'pad_voice',
     scalingFunction: 'linear',
     evidenceLevel: 'design_hypothesis',
+    evidenceClass: 'design_hypothesis',
+    meaningClass: 'data',
     scientificRationale: 'Marine sea salt spray maps to high-frequency glassy overtones (2200 Hz).',
     literatureCitation: 'Earth Jukebox Master Architecture (2026). NASA Space Apps Challenge.',
     conflictsWith: [],
@@ -235,6 +276,9 @@ export const MAPPING_KNOWLEDGE_BASE: SemanticMappingEntry[] = [
     targetVoice: 'lead_voice',
     scalingFunction: 'linear',
     evidenceLevel: 'moderate_literature',
+    evidenceClass: 'moderate_literature',
+    meaningClass: 'data',
+    paletteSlot: 'filter_frequency',
     scientificRationale: 'Worsening air pollution increases acoustic roughness, resonance Q, and high-frequency distortion.',
     literatureCitation: 'Vickers, P. (2016). Sonification and aesthetics: Counterpoint, dissonance, and musicality. The Oxford Handbook of Approach to Sound.',
     conflictsWith: ['lowpass_cutoff'],
@@ -250,6 +294,8 @@ export const MAPPING_KNOWLEDGE_BASE: SemanticMappingEntry[] = [
     targetVoice: 'pad_voice',
     scalingFunction: 'linear',
     evidenceLevel: 'moderate_literature',
+    evidenceClass: 'moderate_literature',
+    meaningClass: 'data',
     scientificRationale: 'Wider geographic water vapor transport corridors naturally expand the binaural acoustic stereo field.',
     literatureCitation: 'Blauert, J. (1997). Spatial Hearing: The Psychophysics of Human Sound Localization. MIT Press.',
     conflictsWith: [],
@@ -265,6 +311,8 @@ export const MAPPING_KNOWLEDGE_BASE: SemanticMappingEntry[] = [
     targetVoice: 'scanner_voice',
     scalingFunction: 'linear',
     evidenceLevel: 'strong_empirical',
+    evidenceClass: 'strong_empirical',
+    meaningClass: 'data',
     scientificRationale: 'NASA Chandra & SYSTEM Sounds standard: x-axis converts directly to time, y-axis converts directly to pitch.',
     literatureCitation: 'NASA / Chandra X-ray Center / SYSTEM Sounds (2020). Data Sonification: Caldwell 73 (SVS 13786).',
     conflictsWith: ['pulse_rate_tempo'],
@@ -282,6 +330,9 @@ export function findCandidateMappings(featureName: string, scientificDimension?:
     if (scientificDimension && entry.scientificDimension !== scientificDimension) {
       return false;
     }
-    return entry.matchingFeaturePatterns.some(pattern => normName.includes(pattern.toLowerCase()));
+    return entry.matchingFeaturePatterns.some(pattern => {
+      const p = pattern.toLowerCase();
+      return normName.includes(p) || p.includes(normName);
+    });
   });
 }

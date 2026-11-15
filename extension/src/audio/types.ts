@@ -26,6 +26,7 @@ export interface AudioEngineOptions {
   enableSpatial?: boolean;
   enablePercussion?: boolean;
   enableReverb?: boolean;
+  semanticEnhance?: boolean;
 }
 
 export interface AudioTelemetry {
@@ -40,6 +41,12 @@ export interface AudioTelemetry {
   raagaName?: string;
   taalaName?: string;
   currentSwara?: string;
+  paletteId?: string;
+  signature?: string;
+  tonic?: string;
+  scaleName?: string;
+  grooveName?: string;
+  motifName?: string;
 }
 
 export interface PresetAudioProfile {

@@ -150,3 +150,58 @@ window.dispatchEvent(new CustomEvent('ejb:control', {
   }
 }));
 ```
+
+---
+
+## 6. Contract v1.1 — Additive Rich Features Extension (`ejb:features`)
+
+As specified in **Amendment A (Distinct-by-Construction Sonification Algorithm)**, Contract v1.1 introduces an **additive, optional event** dispatched at a lower rate (2–4 Hz or upon scene cuts) to communicate high-dimensional morphology and distribution features extracted from a 128px crop without altering Contract v1 `ejb:frame` events:
+
+### Event Specification
+- **Event Name:** `ejb:features`
+- **Direction:** Visual → Audio / Semantic Selector
+- **Payload:** `RichFeaturePayload` (<2 KB)
+
+```typescript
+export interface RichFeaturePayload {
+  v: '1.1';
+  t: number;
+  frameIndex: number;
+  vizId: string;
+  sourceKey?: string;
+  phenomenonClass?: string;
+  features: RichFeatureSet;
+}
+
+export interface RichFeatureSet {
+  // Spatial & statistical distribution
+  level: number;           // Mean masked luminance [0.0, 1.0]
+  spread: number;          // Standard deviation [0.0, 1.0]
+  extremeFrac: number;     // Fraction exceeding 90th percentile [0.0, 1.0]
+  peak: number;            // 99th percentile luminance [0.0, 1.0]
+  focus: [number, number]; // Centroid [x, y] in [0.0, 1.0]
+  texture: number;         // Spatial laplacian energy [0.0, 1.0]
+  sign: number;            // Directional skewness [-1.0, 1.0]
+  entropy: number;         // Shannon entropy [0.0, 1.0]
+  symmetry: number;        // Bilateral symmetry [0.0, 1.0]
+
+  // Color & morphology
+  hueFamily: number;       // Dominant hue bin [0..11]
+  blobs: number;           // Connected component count [0..16]
+
+  // Temporal dynamics
+  temporalRate: number;    // Interframe pixel delta rate [0.0, 1.0]
+  temporalTrend: number;   // Linear trend across sliding window [-1.0, 1.0]
+  temporalOnset: number;   // Transient onset energy [0.0, 1.0]
+
+  // Validity mask
+  validPixelFraction: number; // Ratio of valid planetary pixels [0.0, 1.0]
+  isSpaceBackgroundOnly: boolean;
+}
+```
+
+### Invariants & Non-Interference
+1. Contract v1 `ejb:frame` emissions remain completely unmodified and continuous at 12 Hz.
+2. The semantic selector accepts either `ScientificFeatureFrame` from Contract v1 or v1.1.
+3. If `isSpaceBackgroundOnly` is true, the frame is marked idle and silent.
+

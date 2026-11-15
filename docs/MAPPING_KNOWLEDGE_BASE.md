@@ -103,3 +103,29 @@ When an incoming dataset contains multiple competing features, the following con
 1. **Dimension Collisions:** If two features both seek `pitch_frequency` on `lead_voice` (e.g., both `canopy_height` and `temperature`), the higher provenance tier and higher informational salience feature claims `pitch_frequency`. The secondary feature is re-routed or dropped.
 2. **Filter Cutoff Collisions:** Only one feature may modulate `lowpass_cutoff` per audio frame.
 3. **Voice Overload Limit:** No more than 3 active continuous modulations may run simultaneously on `lead_voice`.
+
+---
+
+## 6. Amendment A Extensions (Distinct-by-Construction Architecture)
+
+Amendment A enriches the knowledge base with three orthogonal meaning classes and dedicated palette slots:
+
+### 6.1. Three Meaning Classes
+1. **`data` (Feature Measurements):**
+   - Direct measurements and scientific extractions.
+   - Modulates the continuous synthesizer parameters (pitch, gain, filter cutoff, pan, noise density) across the 4 data voices.
+2. **`context` (Phenomenon Sound Palettes):**
+   - Grounded acoustic textures reflecting the physical domain (e.g. fire crackle, ocean swell, wind, ice pings, forest rustle).
+   - Synthesized procedurally by `PaletteVoice` at $\le -18\text{ dB}$ headroom.
+3. **`identity` (Memorable Musical Tuple):**
+   - A deterministic tuple `(tonic, scale, groove, motif)` derived from canonical source hashing.
+   - Governs the harmonic foundation without consuming an audio stream or distorting physical data polarity.
+
+### 6.2. Palette Data Slots
+Mappings connect to `PaletteVoice` parameter slots:
+- `pitch_center`: Sets the fundamental frequency range of the context bed
+- `filter_frequency`: Dynamic opening/closing of context filter
+- `noise_density`: Modulates grain or particle turbulence
+- `intensity`: Drives overall context bed presence
+- `pulse_rate`: Controls crackle or swell tempo
+

@@ -1,94 +1,137 @@
 /**
- * Earth Jukebox (EJB) — Mapping Profile Builder
+ * Earth Jukebox (EJB) — Mapping Profile Builder (Amendment A, Section A8)
  *
- * Deterministically constructs and versions MappingProfile objects with complete auditory legends.
+ * Constructs a fully deterministic, versioned MappingProfile combining:
+ * - Data Class: Active feature-to-voice mappings
+ * - Context Class: Phenomenon sound palette and variant
+ * - Identity Class: Stable source signature (tonic, scale, groove, motif)
  *
- * Authored by Pranav K & Ujwal A.
+ * Authored for Amendment A (NASA Space Apps Challenge 2026).
  */
 
-import type { ScientificFeatureFrame, ScientificFeature } from '../sfr/types';
-import type { ActiveMappingAssignment, LegendItem, MappingProfile } from './types';
-import { getMappingById } from './mapping-knowledge-base';
+import type { MappingProfile, ActiveMappingAssignment, LegendItem, OmittedMapping, BaselineMode } from './types';
+import type { SourceIdentityTuple } from './signature';
+import type { RoleAssignmentResult } from './salience';
+import { PALETTE_DECLARATIONS, type PaletteClassId } from '../audio/synths/palette-voice';
 
-function findFeatureInFrame(frame: ScientificFeatureFrame | any, featureName: string): ScientificFeature | any | undefined {
-  if (Array.isArray(frame.features)) {
-    return frame.features.find((f: any) => f.featureName === featureName || f.featureId === featureName || f.name === featureName);
-  }
-  if (frame.features && typeof frame.features === 'object') {
-    return frame.features[featureName];
-  }
-  return undefined;
+export interface BuildProfileOptions {
+  sourceKey: string;
+  phenomenonClass: string;
+  identity: SourceIdentityTuple;
+  roles: RoleAssignmentResult;
+  baselineMode?: BaselineMode;
+  activeMappings: ActiveMappingAssignment[];
+  omittedFeatures?: OmittedMapping[];
+  timestamp?: number;
 }
 
-export function buildDeterministicProfileId(datasetId: string, assignments: ActiveMappingAssignment[]): string {
-  const sortedMappings = [...assignments].map(a => `${a.featureName}:${a.mappingId}`).sort().join('|');
-  let hash = 0;
-  const str = `${datasetId}::${sortedMappings}`;
-  for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) - hash) + str.charCodeAt(i);
-    hash |= 0;
-  }
-  return `profile-${Math.abs(hash).toString(16)}`;
-}
+export function buildDeterministicMappingProfile(options: BuildProfileOptions): MappingProfile {
+  const {
+    sourceKey,
+    phenomenonClass,
+    identity,
+    roles,
+    baselineMode = 'running',
+    activeMappings,
+    omittedFeatures = [],
+    timestamp = 0
+  } = options;
 
-export function buildAuditoryLegend(
-  frame: ScientificFeatureFrame | any,
-  assignments: ActiveMappingAssignment[]
-): LegendItem[] {
-  const legend: LegendItem[] = [];
+  // Resolve phenomenon palette
+  let palClass: PaletteClassId = 'generic_earth';
+  if (phenomenonClass.includes('fire') || phenomenonClass.includes('thermal')) palClass = 'fire';
+  else if (phenomenonClass.includes('sst') || phenomenonClass.includes('ocean')) palClass = 'ocean';
+  else if (phenomenonClass.includes('aerosol') || phenomenonClass.includes('river')) palClass = 'atmosphere';
+  else if (phenomenonClass.includes('air-quality')) palClass = 'air_quality';
+  else if (phenomenonClass.includes('night')) palClass = 'night_lights';
+  else if (phenomenonClass.includes('canopy') || phenomenonClass.includes('gedi')) palClass = 'biosphere';
+  else if (phenomenonClass.includes('lightning')) palClass = 'lightning';
+  else if (phenomenonClass.includes('co2') || phenomenonClass.includes('carbon')) palClass = 'carbon';
+  else if (phenomenonClass.includes('ice') || phenomenonClass.includes('antarctica')) palClass = 'cryosphere';
 
-  for (const a of assignments) {
-    const feature = findFeatureInFrame(frame, a.featureName);
-    const mapping = getMappingById(a.mappingId);
-
-    legend.push({
-      featureName: a.featureName,
-      scientificUnit: feature ? feature.unit : 'unitless',
-      targetAuditoryDimension: a.targetAuditoryDimension,
-      targetVoice: a.targetVoice,
-      verbalDescription: a.verbalDescription,
-      evidenceCitation: mapping ? mapping.literatureCitation : 'NASA Space Apps Challenge 2026'
-    });
-  }
-
-  return legend;
-}
-
-export function buildEmptySilentProfile(datasetId = 'unknown'): MappingProfile {
-  return {
-    profileId: `profile-silent-${datasetId}`,
-    name: 'Safe Silent/Idle Profile',
-    version: '1.0.0',
-    isSilent: true,
-    activeMappings: [],
-    auditoryLegend: [],
-    generatedAt: Date.now(),
-    totalActiveVoices: 0
+  const palDecl = PALETTE_DECLARATIONS[palClass] || PALETTE_DECLARATIONS.generic_earth;
+  const palette = {
+    id: palDecl.id,
+    variant: identity.paletteVariant,
+    description: palDecl.description
   };
-}
 
-export function buildMappingProfile(
-  frame: ScientificFeatureFrame | any,
-  assignments: ActiveMappingAssignment[]
-): MappingProfile {
-  const datasetId = frame.sourceId || frame.datasetId || 'earth-dataset';
+  // Build auditory legend (1:1 with activeMappings)
+  const auditoryLegend: LegendItem[] = activeMappings.map(m => ({
+    featureName: m.featureName,
+    scientificUnit: 'calibrated',
+    targetAuditoryDimension: m.targetAuditoryDimension,
+    targetVoice: m.targetVoice,
+    verbalDescription: m.verbalDescription,
+    evidenceCitation: 'NASA EJB Evidence Base (2026)',
+    meaningClass: m.meaningClass || 'data'
+  }));
 
-  if (assignments.length === 0) {
-    return buildEmptySilentProfile(datasetId);
-  }
+  // Unique target voices active
+  const uniqueVoices = new Set(activeMappings.map(m => m.targetVoice));
+  uniqueVoices.add('palette_voice');
 
-  const profileId = buildDeterministicProfileId(datasetId, assignments);
-  const legend = buildAuditoryLegend(frame, assignments);
-  const uniqueVoices = new Set(assignments.map(a => a.targetVoice));
+  const profileId = `profile:${sourceKey}:${identity.signature.slice(0, 8)}`;
 
   return {
     profileId,
-    name: `Autonomous Profile: ${datasetId}`,
-    version: '1.0.0',
-    isSilent: false,
-    activeMappings: assignments,
-    auditoryLegend: legend,
-    generatedAt: Date.now(),
-    totalActiveVoices: uniqueVoices.size
+    sourceKey,
+    phenomenonClass,
+    name: `Earth Jukebox Profile: ${sourceKey}`,
+    version: '1.1.0',
+    isSilent: activeMappings.length === 0,
+    baselineMode,
+    identity,
+    palette,
+    roles,
+    activeMappings,
+    auditoryLegend,
+    omittedFeatures,
+    generatedAt: timestamp,
+    totalActiveVoices: uniqueVoices.size,
+    weightsVersion: '1.1.0',
+    knowledgeBaseVersion: '1.1.0'
+  };
+}
+
+export function buildEmptySilentProfile(datasetId: string): MappingProfile {
+  return {
+    profileId: `profile:${datasetId}:silent`,
+    sourceKey: datasetId,
+    phenomenonClass: 'generic-earth',
+    name: `Silent Profile: ${datasetId}`,
+    version: '1.1.0',
+    isSilent: true,
+    baselineMode: 'neutral',
+    identity: {
+      signature: '0000000000000000',
+      sourceKey: datasetId,
+      phenomenonClass: 'generic-earth',
+      tonic: 'C3',
+      scaleId: 'dorian',
+      grooveTemplate: 'groove.steady_4_4',
+      paletteVariant: 0,
+      motifId: 'motif.rising_triad',
+      tempoBase: 80,
+      registerBase: 'madhya'
+    },
+    palette: {
+      id: 'generic_earth',
+      variant: 0,
+      description: 'Neutral silence'
+    },
+    roles: {
+      foreground: ['none', 'none', 'none'],
+      background: [],
+      salienceMap: new Map(),
+      salienceList: []
+    },
+    activeMappings: [],
+    auditoryLegend: [],
+    omittedFeatures: [{ featureName: 'all', reason: 'Empty feature frame' }],
+    generatedAt: 0,
+    totalActiveVoices: 0,
+    weightsVersion: '1.1.0',
+    knowledgeBaseVersion: '1.1.0'
   };
 }

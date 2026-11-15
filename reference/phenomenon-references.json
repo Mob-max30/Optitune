@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "NASA Earth Phenomenon Physical Reference Ranges",
+  "version": "1.0.0",
+  "phenomena": {
+    "gedi-forest-height": {
+      "name": "Global Forest Canopy Height",
+      "unit": "m",
+      "min": 0,
+      "max": 60,
+      "mean": 25.0,
+      "std": 14.0,
+      "source": "NASA GEDI LiDAR Level 2A"
+    },
+    "sst-currents": {
+      "name": "Sea Surface Temperature & Currents",
+      "unit": "°C",
+      "min": -2.0,
+      "max": 32.0,
+      "mean": 16.5,
+      "std": 8.5,
+      "source": "NASA GHRSST Multi-Scale Ultra-High Resolution"
+    },
+    "thermal-fire": {
+      "name": "Thermal Radiation & Wildfire Perimeters",
+      "unit": "MW",
+      "min": 0.0,
+      "max": 500.0,
+      "mean": 35.0,
+      "std": 60.0,
+      "source": "MODIS/VIIRS Active Fire Products"
+    },
+    "night-lights": {
+      "name": "Change in Night Lights",
+      "unit": "nW/cm²/sr",
+      "min": 0.0,
+      "max": 150.0,
+      "mean": 18.0,
+      "std": 25.0,
+      "source": "Suomi NPP VIIRS Day/Night Band"
+    },
+    "geos-aerosols": {
+      "name": "GEOS-FP Aerosol Optical Depth",
+      "unit": "AOD",
+      "min": 0.0,
+      "max": 2.0,
+      "mean": 0.25,
+      "std": 0.30,
+      "source": "NASA GMAO GEOS-FP Forward Processing"
+    },
+    "atmospheric-co2": {
+      "name": "Mid-Tropospheric Carbon Dioxide",
+      "unit": "ppm",
+      "min": 390.0,
+      "max": 425.0,
+      "mean": 412.0,
+      "std": 7.5,
+      "source": "NASA AIRS & OCO-2"
+    },
+    "grace-groundwater": {
+      "name": "GRACE Groundwater & Soil Moisture Anomaly",
+      "unit": "cm",
+      "min": -15.0,
+      "max": 15.0,
+      "mean": 0.0,
+      "std": 4.5,
+      "source": "NASA GRACE-FO Tellus"
+    },
+    "iss-lightning": {
+      "name": "ISS LIS Lightning Flashes",
+      "unit": "flashes/km²/yr",
+      "min": 0.0,
+      "max": 120.0,
+      "mean": 8.0,
+      "std": 16.0,
+      "source": "ISS Lightning Imaging Sensor (LIS)"
+    },
+    "air-quality": {
+      "name": "Surface Particulate Matter (PM2.5)",
+      "unit": "µg/m³",
+      "min": 0.0,
+      "max": 100.0,
+      "mean": 22.0,
+      "std": 18.0,
+      "source": "NASA Air Quality Model Runs"
+    },
+    "ozone-hole": {
+      "name": "Antarctic Total Column Ozone",
+      "unit": "DU",
+      "min": 100.0,
+      "max": 450.0,
+      "mean": 240.0,
+      "std": 65.0,
+      "source": "NASA OMI Total Ozone"
+    },
+    "generic-earth": {
+      "name": "General Earth Visual Proxy Baseline",
+      "unit": "ratio",
+      "min": 0.0,
+      "max": 1.0,
+      "mean": 0.40,
+      "std": 0.22,
+      "status": "ESTIMATED",
+      "todo": "TODO: verify with NASA EIC empirical baseline collection",
+      "source": "Synthesized Global Surface Luminance Model"
+    }
+  }
+}

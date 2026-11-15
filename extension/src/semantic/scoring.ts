@@ -1,19 +1,30 @@
 /**
- * Earth Jukebox (EJB) — Semantic Mapping Candidate Scoring Algorithm
+ * Earth Jukebox (EJB) — Value-Aware Semantic Candidate Scoring Algorithm
  *
- * Implements S(m) = w1*P(m) + w2*C(m) + w3*D(m) + w4*I(m) - w5*K(m)
+ * Implements Amendment A, Section A7:
+ * S(m) = w1*P + w2*C + w3*D + w4*I + w6*Sal + w7*Div - w5*K
  *
- * Authored by Pranav K & Ujwal A.
+ * Terms:
+ * - P: Provenance score [0, 1]
+ * - C: Scientific / Literature confidence [0, 1]
+ * - D: Crossmodal distinction & naturalness [0, 1]
+ * - I: Interpretability & dynamic clarity [0, 1]
+ * - Sal: Normalized feature salience [0, 1] (value-aware!)
+ * - Div: Voice & dimension diversity bonus [0, 1] (prevents piling onto pitch/amplitude)
+ * - K: Stream complexity & cognitive load penalty [0, 1]
+ *
+ * Authored for Amendment A (NASA Space Apps Challenge 2026).
  */
 
 import type { ScientificFeature } from '../sfr/types';
 import type { SemanticMappingEntry } from './mapping-knowledge-base';
 import type { ScoringWeights, CandidateScore, ActiveMappingAssignment } from './types';
 import { DEFAULT_SCORING_WEIGHTS } from './types';
+import { clamp, round3 } from '../analysis/normalize';
 
 /**
  * Calculates Provenance Score P(m) based on data source reliability
- * Tier 1 (physical SI) > Tier 2 (reanalysis) > Tier 3 (calibrated colorbar) > Tier 4 (proxy)
+ * Tier 1 (physical SI) > Tier 2 (reanalysis) > Tier 3 (calibrated visual) > Tier 4 (proxy)
  */
 export function calculateProvenanceScore(feature: ScientificFeature | any): number {
   const sourceType = feature.provenance?.sourceType;
@@ -22,7 +33,7 @@ export function calculateProvenanceScore(feature: ScientificFeature | any): numb
   if (sourceType === 'tier3_calibrated_visual') return 0.70;
   if (sourceType === 'tier4_visual_proxy') return 0.45;
 
-  const tier = feature.provenanceTier;
+  const tier = feature.provenanceTier ?? feature.provenance?.provenanceTier;
   switch (tier) {
     case 1:
       return 1.0;
@@ -41,7 +52,8 @@ export function calculateProvenanceScore(feature: ScientificFeature | any): numb
  * Calculates Literature Confidence Score C(m)
  */
 export function calculateConfidenceScore(mapping: SemanticMappingEntry): number {
-  switch (mapping.evidenceLevel) {
+  const level = mapping.evidenceLevel || mapping.evidenceClass;
+  switch (level) {
     case 'strong_empirical':
       return 1.0;
     case 'moderate_literature':
@@ -60,21 +72,21 @@ export function calculateDistinctionScore(feature: ScientificFeature | any, mapp
   const featureType = feature.featureType || feature.type;
   const featureName = (feature.featureName || feature.name || '').toLowerCase();
 
-  // If feature type perfectly aligns with mapping target
+  // Natural crossmodal matches
   if (featureType === 'event' && mapping.targetAuditoryDimension === 'transient_percussion') {
     return 1.0;
   }
   if ((featureType === 'spatial_grid' || featureType === 'spatial_grid_2d') && mapping.targetAuditoryDimension === 'latitudinal_voicing') {
     return 1.0;
   }
-  if (featureName.includes('motion') && mapping.targetAuditoryDimension === 'lowpass_cutoff') {
+  if ((featureName.includes('motion') || featureName.includes('rate')) && mapping.targetAuditoryDimension === 'lowpass_cutoff') {
     return 1.0;
   }
-  if ((featureName.includes('height') || featureName.includes('elevation')) && mapping.targetAuditoryDimension === 'pitch_frequency') {
+  if ((featureName.includes('height') || featureName.includes('altitude') || featureName.includes('level')) && mapping.targetAuditoryDimension === 'pitch_frequency') {
     return 1.0;
   }
-  if (featureName.includes('smoke') || featureName.includes('dust') || featureName.includes('current')) {
-    if (mapping.targetVoice === 'noise_voice') return 0.95;
+  if (mapping.targetVoice === 'palette_voice') {
+    return 0.95; // High crossmodal naturalness for phenomenon palette textures
   }
   return 0.75;
 }
@@ -88,81 +100,89 @@ export function calculateInformationScore(feature: ScientificFeature | any): num
     ? feature.quality.calibrationStatus !== 'uncalibrated' && feature.quality.calibrationStatus !== 'proxy_inferred'
     : Boolean(feature.isCalibrated);
 
-  if (isCalibrated) score += 0.2;
+  if (isCalibrated) score += 0.25;
 
-  const featureType = feature.featureType || feature.type;
-  if (featureType === 'scalar') {
-    if (feature.value !== 0 && !isNaN(feature.value)) score += 0.3;
-  } else if (featureType === 'spatial_grid' || featureType === 'spatial_grid_2d') {
-    score += 0.3;
-  } else if (featureType === 'event') {
-    if (feature.occurred || feature.intensity > 0) score += 0.3;
-  } else if (featureType === 'categorical' || featureType === 'categorical_distribution') {
-    score += 0.3;
+  const val = feature.observedValue ?? feature.value;
+  if (typeof val === 'number' && !isNaN(val) && val > 0) {
+    score += 0.25;
   }
   return Math.min(1.0, score);
 }
 
 /**
- * Calculates Cognitive Complexity Penalty K(m)
- * Penalizes overloading a single voice or auditory parameter.
+ * Calculates Voice & Parameter Diversity Bonus Div(m)
+ * Grants bonus 1.0 if target voice or parameter is not yet occupied by existing active mappings.
  */
-export function calculateComplexityPenalty(
+export function calculateDiversityBonus(
   mapping: SemanticMappingEntry,
   existingAssignments: ActiveMappingAssignment[]
 ): number {
-  let voiceCount = 0;
-  let paramCount = 0;
+  const voiceOccupied = existingAssignments.some(a => a.targetVoice === mapping.targetVoice);
+  const dimensionOccupied = existingAssignments.some(a => a.targetAuditoryDimension === mapping.targetAuditoryDimension);
 
-  for (const a of existingAssignments) {
-    if (a.targetVoice === mapping.targetVoice) voiceCount++;
-    if (a.targetAuditoryDimension === mapping.targetAuditoryDimension) paramCount++;
-  }
-
-  // Penalty grows quickly if parameter is already assigned or voice is crowded
-  const paramPenalty = paramCount * 0.5;
-  const voicePenalty = voiceCount * 0.15;
-  return Math.min(1.0, paramPenalty + voicePenalty);
+  if (!voiceOccupied && !dimensionOccupied) return 1.0;
+  if (!voiceOccupied) return 0.6;
+  if (!dimensionOccupied) return 0.4;
+  return 0.0;
 }
 
 /**
- * Evaluates candidate mapping suitability score:
- * S(m) = w1*P(m) + w2*C(m) + w3*D(m) + w4*I(m) - w5*K(m)
+ * Calculates Cognitive Complexity Penalty K(m)
+ */
+export function calculateComplexityPenalty(existingAssignments: ActiveMappingAssignment[]): number {
+  const activeCount = existingAssignments.length;
+  if (activeCount <= 1) return 0.0;
+  if (activeCount === 2) return 0.2;
+  if (activeCount === 3) return 0.5;
+  return 0.85;
+}
+
+/**
+ * Master Candidate Scoring Function:
+ * S(m) = w1*P + w2*C + w3*D + w4*I + w6*Sal + w7*Div - w5*K
  */
 export function scoreCandidate(
   feature: ScientificFeature | any,
   mapping: SemanticMappingEntry,
-  existingAssignments: ActiveMappingAssignment[],
-  weights: ScoringWeights = DEFAULT_SCORING_WEIGHTS
+  existingAssignments: ActiveMappingAssignment[] = [],
+  weights: ScoringWeights = DEFAULT_SCORING_WEIGHTS,
+  featureSalience = 0.50
 ): CandidateScore {
   const p = calculateProvenanceScore(feature);
   const c = calculateConfidenceScore(mapping);
   const d = calculateDistinctionScore(feature, mapping);
   const i = calculateInformationScore(feature);
-  const k = calculateComplexityPenalty(mapping, existingAssignments);
+  const sal = clamp(featureSalience, 0.0, 1.0);
+  const div = calculateDiversityBonus(mapping, existingAssignments);
+  const k = calculateComplexityPenalty(existingAssignments);
 
-  const rawScore =
-    weights.wProvenance * p +
-    weights.wConfidence * c +
-    weights.wDistinction * d +
-    weights.wInformation * i -
-    weights.wComplexityPenalty * k;
+  // Amendment A Formula:
+  // S(m) = w1*P + w2*C + w3*D + w4*I + w6*Sal + w7*Div - w5*K
+  const w1 = weights.wProvenance ?? 0.20;
+  const w2 = weights.wConfidence ?? 0.20;
+  const w3 = weights.wDistinction ?? 0.20;
+  const w4 = weights.wInformation ?? 0.15;
+  const w6 = weights.wSalience ?? 0.20;
+  const w7 = weights.wDiversity ?? 0.05;
+  const w5 = weights.wComplexityPenalty ?? 0.25;
 
-  const totalScore = Math.max(0.0, Math.min(1.0, Number(rawScore.toFixed(4))));
-  const featureName = feature.featureName || feature.name;
+  const rawScore = (w1 * p) + (w2 * c) + (w3 * d) + (w4 * i) + (w6 * sal) + (w7 * div) - (w5 * k);
+  const totalScore = round3(clamp(rawScore, 0.0, 1.0));
 
   return {
     mappingId: mapping.mappingId,
-    featureName,
+    featureName: feature.featureName || feature.name || mapping.matchingFeaturePatterns[0],
     targetAuditoryDimension: mapping.targetAuditoryDimension,
     targetVoice: mapping.targetVoice,
     totalScore,
     components: {
-      provenance: p,
-      confidence: c,
-      distinction: d,
-      information: i,
-      complexityPenalty: k
+      provenance: round3(p),
+      confidence: round3(c),
+      distinction: round3(d),
+      information: round3(i),
+      salience: round3(sal),
+      diversity: round3(div),
+      complexityPenalty: round3(k)
     }
   };
 }

@@ -168,9 +168,11 @@ export class AutonomousAudioEngineAdapter {
   private engine: EarthJukeboxAudioEngine;
   private currentProfile: MappingProfile | null = null;
   private activeDatasetId: string | null = null;
+  private semanticEnhance = true;
 
-  constructor(engine: EarthJukeboxAudioEngine) {
+  constructor(engine: EarthJukeboxAudioEngine, semanticEnhance = true) {
     this.engine = engine;
+    this.semanticEnhance = semanticEnhance;
   }
 
   /**
@@ -178,6 +180,16 @@ export class AutonomousAudioEngineAdapter {
    */
   getActiveProfile(): MappingProfile | null {
     return this.currentProfile;
+  }
+
+  /**
+   * Sets whether the semantic enhancement (palette + identity) layer is active.
+   */
+  setSemanticEnhance(enhance: boolean): void {
+    this.semanticEnhance = enhance;
+    if (!enhance) {
+      this.engine.getPaletteVoice()?.fadeTo(0, 0.05);
+    }
   }
 
   /**
@@ -204,6 +216,19 @@ export class AutonomousAudioEngineAdapter {
     // 2. Evaluate physical synthesis parameters
     const params = evaluateProfileParameters(this.currentProfile, frame);
 
+    // 3. Drive Phenomenon PaletteVoice (Context sound bed)
+    if (this.semanticEnhance && this.currentProfile?.palette) {
+      const paletteVoice = this.engine.getPaletteVoice();
+      if (paletteVoice) {
+        paletteVoice.setPalette(this.currentProfile.palette.id as any, this.currentProfile.palette.variant);
+        paletteVoice.update({
+          intensity: params.leadGain,
+          filter_frequency: params.filterCutoff,
+          noise_density: params.noiseIntensity
+        });
+      }
+    }
+
     // Build standard 4x8 RegionGridMetrics (32 cells)
     const brightnessGrid = new Array(32).fill(params.leadGain);
     for (let r = 0; r < 4; r++) {
@@ -212,7 +237,7 @@ export class AutonomousAudioEngineAdapter {
       }
     }
 
-    // 3. Synthesize an EjbFramePayload to safely drive the internal engine without breaking compatibility
+    // 4. Synthesize an EjbFramePayload to safely drive the internal engine without breaking compatibility
     const syntheticPayload: EjbFramePayload = {
       v: 1,
       t: frame.timestamp ?? 0,
@@ -250,6 +275,20 @@ export class AutonomousAudioEngineAdapter {
     };
 
     this.engine.processFrame(syntheticPayload);
-    return this.engine.getTelemetry();
+
+    // Enrich telemetry with Distinct-by-Construction identity and palette
+    const telemetry = this.engine.getTelemetry();
+    if (this.currentProfile?.identity) {
+      telemetry.signature = this.currentProfile.identity.signature;
+      telemetry.tonic = this.currentProfile.identity.tonic;
+      telemetry.scaleName = this.currentProfile.identity.scaleId;
+      telemetry.grooveName = this.currentProfile.identity.grooveTemplate;
+      telemetry.motifName = this.currentProfile.identity.motifId;
+    }
+    if (this.currentProfile?.palette) {
+      telemetry.paletteId = this.currentProfile.palette.id;
+    }
+
+    return telemetry;
   }
 }

@@ -30,6 +30,7 @@ import { PadVoice } from './synths/pad-voice';
 import { PercussionVoice } from './synths/percussion';
 import { TextureNoiseVoice } from './synths/noise-voice';
 import { ScannerVoice } from './synths/scanner-voice';
+import { PaletteVoice } from './synths/palette-voice';
 import { TanpuraVoice } from './synths/tanpura-voice';
 import { TablaVoice } from './synths/tabla-voice';
 import { IndianMelodicVoice } from './synths/raaga-lead';
@@ -48,6 +49,7 @@ export class EarthJukeboxAudioEngine {
   private percussionVoice: PercussionVoice | null = null;
   private noiseVoice: TextureNoiseVoice | null = null;
   private scannerVoice: ScannerVoice | null = null;
+  private paletteVoice: PaletteVoice | null = null;
 
   // Classical Indian voices
   private tanpuraVoice: TanpuraVoice | null = null;
@@ -125,6 +127,7 @@ export class EarthJukeboxAudioEngine {
     this.leadVoice?.fadeTo(0, 0.04);
     this.padVoice?.fadeTo(0, 0.04);
     this.noiseVoice?.fadeTo(0, 0.04);
+    this.paletteVoice?.fadeTo(0, 0.04);
     this.scannerVoice?.stop();
     this.tanpuraVoice?.stop();
     this.tablaVoice?.stop();
@@ -140,6 +143,7 @@ export class EarthJukeboxAudioEngine {
     }
     const now = this.ctx.currentTime;
     this.masterGain.gain.setTargetAtTime(this.isMuted ? 0 : this.masterVolume, now, 0.05);
+    this.paletteVoice?.fadeTo(0.12, 0.05);
     if (this.currentMode === 'scanner') {
       this.scannerVoice?.start();
     } else if (this.currentMode === 'raaga') {
@@ -158,6 +162,7 @@ export class EarthJukeboxAudioEngine {
     this.detachEventListeners();
     this.tanpuraVoice?.stop();
     this.tablaVoice?.stop();
+    this.paletteVoice?.fadeTo(0, 0.04);
     console.log('[Audio Engine] Earth Jukebox Sonification stopped.');
   }
 
@@ -259,6 +264,14 @@ export class EarthJukeboxAudioEngine {
    */
   getTelemetry(): AudioTelemetry {
     return { ...this.lastTelemetry };
+  }
+
+  getPaletteVoice(): PaletteVoice | null {
+    return this.paletteVoice;
+  }
+
+  getSmoother(): FrameMetricsSmoother {
+    return this.smoother;
   }
 
   /**
@@ -508,6 +521,10 @@ export class EarthJukeboxAudioEngine {
 
     this.scannerVoice = new ScannerVoice(this.ctx, this.compressor);
 
+    // Phenomenon Palette Voice (Amendment A)
+    this.paletteVoice = new PaletteVoice(this.ctx, this.compressor);
+    this.paletteVoice.start();
+
     // Classical Indian voices
     this.tanpuraVoice = new TanpuraVoice(this.ctx, this.compressor);
     this.tablaVoice = new TablaVoice(this.ctx, this.compressor);
@@ -584,6 +601,7 @@ export class EarthJukeboxAudioEngine {
     this.padVoice?.dispose();
     this.noiseVoice?.dispose();
     this.scannerVoice?.dispose();
+    this.paletteVoice?.dispose();
     this.tanpuraVoice?.dispose();
     this.tablaVoice?.dispose();
     this.raagaMelodicVoice?.dispose();

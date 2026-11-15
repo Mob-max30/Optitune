@@ -51,3 +51,21 @@ Tier 4: Generic Visual Proxy (Rec. 601 luma, 12-bin peak hue, optical flow delta
 ## 4. TypeScript Schema
 
 See [`extension/src/sfr/types.ts`](file:///e:/My%20Projects/optitone/extension/src/sfr/types.ts) for full TypeScript interface definitions and [`extension/src/sfr/schema.ts`](file:///e:/My%20Projects/optitone/extension/src/sfr/schema.ts) for runtime validation.
+
+---
+
+## 5. Amendment A Extensions (Rich Feature Set)
+
+To enable Distinct-by-Construction sonification across diverse visual datasets, SFR v1 seamlessly supports the additive `RichFeaturePayload` from Contract v1.1:
+- `spatial_spread`: Standard deviation of valid planetary pixels
+- `extreme_fraction`: Fraction of pixels exceeding 90th percentile
+- `peak_luminance`: 99th percentile peak value
+- `spatial_focus`: Centroid coordinate `[x, y]`
+- `spatial_texture`: High-frequency laplacian spatial energy
+- `directional_skewness`: Spatial sign/skewness
+- `spatial_entropy`: Shannon distribution entropy
+- `bilateral_symmetry`: East-west bilateral symmetry metric
+- `temporal_trend`: Linear trend slope over sliding temporal window
+- `temporal_onset`: Onset acceleration for transient detection
+- `valid_pixel_fraction`: Planetary mask ratio excluding dark space background ($L < 0.04$)
+

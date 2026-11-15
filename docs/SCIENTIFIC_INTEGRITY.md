@@ -53,3 +53,18 @@ Earth Jukebox strictly separates three distinct temporal references:
 - **No Hallucinated Parameters:** The autonomous selector operates deterministically without non-deterministic generative models in the real-time synthesis loop.
 - **Auditory Legend Transparency:** Every active sound is verbally explained via the Auditory Legend, explicitly communicating the feature name, physical unit, provenance tier, and academic citation.
 - **Limiter & Acoustic Safety:** All synthesizer voices pass through a dynamics limiter and compressor to guarantee listener hearing safety and prevent clipping distortion.
+
+---
+
+## 6. Meaning Class Orthogonality & Data Layer Sanctity (Amendment A)
+
+Under Amendment A, Earth Jukebox strictly isolates three orthogonal meaning classes:
+1. **`data`**: Encodes physical measurements (canopy height, SST, CO2, lightning counts, motion). Modulates continuous synthesizer parameters (pitch, gain, filter cutoff, pan).
+2. **`context`**: Encodes the physical phenomenon domain (fire crackle, ocean wash, wind noise) at safe, subdued background levels ($\le -18\text{ dB}$).
+3. **`identity`**: Encodes canonical source identifiers (tonic, scale, groove, motif) providing memorable distinctness across videos.
+
+### Invariant Rules:
+- **No Cross-Contamination:** The identity layer and context bed **never alter, scale, offset, or invert data measurements**.
+- **Polarity Invariance:** Higher physical values consistently sound higher in pitch or presence across all identity modes and presets.
+- **Honest Telemetry:** Telemetry and legends distinctly label which sounds represent scientific measurements versus ambient context or harmonic identity.
+
