@@ -180,6 +180,11 @@ Detailed specification available in [`docs/CONTRACT.md`](docs/CONTRACT.md).
 - 📊 [**Evaluation Plan**](docs/EVALUATION_PLAN.md) — Objective evaluation methods and listening comprehension protocols.
 - 📈 [**Evaluation Results & Benchmarks**](docs/EVALUATION_RESULTS.md) — Measured latencies ($0.47\text{ ms}$ total pipeline) and accuracy results.
 - ⚠️ [**Known Limitations & Boundaries**](docs/KNOWN_LIMITATIONS.md) — Browser CORS, gesture policies, and video compression boundaries.
+- 🎨 [**UI Design Plan & The Listening Disc**](docs/ui/DESIGN_PLAN.md) — Interface & experience redesign tokens, ASCII wireframes, and self-critique.
+- 💬 [**Listener-Facing Copy & Nomenclature**](docs/ui/COPY.md) — Plain-language mapping, 4 provenance chips, and 3-choice sound modes.
+- 🔎 [**UI System Audit**](docs/ui/UI_AUDIT.md) — Comprehensive element-by-element UI and data-reading inventory.
+- 🔬 [**UI Findings & Calibration Discrepancy Log**](docs/ui/UI_FINDINGS.md) — Root-cause analysis of the GEDI hue vs. physical value observation.
+- ♿ [**Accessibility (A11Y) Verification Checklist**](docs/ui/A11Y_CHECKLIST.md) — WCAG 2.1 AA compliance matrix, contrast verification, and screen-reader protocols.
 - 🎬 [**Repeatable Demonstration Script**](docs/DEMO_SCRIPT.md) — 5-act judging walkthrough in Demo Studio.
 - 📝 [**Final Verification Log**](docs/FINAL_VERIFICATION_LOG.md) — Test commands, build metrics, and version records.
 - 🔒 [**Privacy Policy & Guarantee**](docs/PRIVACY.md) — Verification of 100% local, client-side execution with zero data collection.

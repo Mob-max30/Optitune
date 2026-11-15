@@ -1,0 +1,116 @@
+/**
+ * Earth Jukebox (EJB) — Shared Design Tokens
+ * Specification: Amendment B ("The Listening Disc")
+ */
+
+:root, :host {
+  /* Core Orbital Palette */
+  --ejb-color-night: #0B1020;
+  --ejb-color-dusk: #151C36;
+  --ejb-color-dusk-hover: #1E274A;
+  --ejb-color-dusk-border: rgba(143, 211, 232, 0.16);
+  --ejb-color-horizon: #F2C9A0;
+  --ejb-color-limb: #8FD3E8;
+  --ejb-color-text: #F1ECE4;
+  --ejb-color-muted: #AEB6CC;
+
+  /* Default Phenomenon Tint (Generic Earth = Limb) */
+  --ejb-color-tint: #8FD3E8;
+  --ejb-color-tint-glow: rgba(143, 211, 232, 0.20);
+  --ejb-color-tint-subtle: rgba(143, 211, 232, 0.08);
+
+  /* Specific Phenomenon Tints */
+  --ejb-tint-fire: #FF6A3D;
+  --ejb-tint-ocean: #3CC8C0;
+  --ejb-tint-air-quality: #B6A6FF;
+  --ejb-tint-ice: #BFE8FF;
+  --ejb-tint-canopy: #8BD66B;
+  --ejb-tint-night-lights: #FFC857;
+  --ejb-tint-carbon: #C9A66B;
+  --ejb-tint-generic: #8FD3E8;
+
+  /* Typography */
+  --ejb-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --ejb-font-features: "tnum" 1, "cv02" 1, "cv03" 1, "cv04" 1;
+
+  /* Radii */
+  --ejb-radius-control: 6px;
+  --ejb-radius-panel: 12px;
+  --ejb-radius-round: 9999px;
+
+  /* Spacing Scale (4px base) */
+  --ejb-space-xs: 4px;
+  --ejb-space-sm: 8px;
+  --ejb-space-md: 12px;
+  --ejb-space-lg: 16px;
+  --ejb-space-xl: 24px;
+  --ejb-space-2xl: 32px;
+
+  /* Transitions */
+  --ejb-transition-fast: 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  --ejb-transition-medium: 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  --ejb-transition-tint: 600ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Elevation */
+  --ejb-shadow-panel: 0 16px 40px -8px rgba(5, 10, 25, 0.65), 0 0 0 1px var(--ejb-color-dusk-border);
+  --ejb-shadow-dock: 0 8px 24px -4px rgba(5, 10, 25, 0.50), 0 0 0 1px var(--ejb-color-dusk-border);
+}
+
+/* Palette Tint Overrides via Data Attributes */
+[data-phenomenon="thermal-fire"], [data-phenomenon="fire"] {
+  --ejb-color-tint: var(--ejb-tint-fire);
+  --ejb-color-tint-glow: rgba(255, 106, 61, 0.25);
+  --ejb-color-tint-subtle: rgba(255, 106, 61, 0.08);
+}
+[data-phenomenon="ocean-temperature"], [data-phenomenon="ocean"], [data-phenomenon="sst"] {
+  --ejb-color-tint: var(--ejb-tint-ocean);
+  --ejb-color-tint-glow: rgba(60, 200, 192, 0.25);
+  --ejb-color-tint-subtle: rgba(60, 200, 192, 0.08);
+}
+[data-phenomenon="air-quality"], [data-phenomenon="atmosphere"], [data-phenomenon="aerosols"] {
+  --ejb-color-tint: var(--ejb-tint-air-quality);
+  --ejb-color-tint-glow: rgba(182, 166, 255, 0.25);
+  --ejb-color-tint-subtle: rgba(182, 166, 255, 0.08);
+}
+[data-phenomenon="polar-ice"], [data-phenomenon="ice"], [data-phenomenon="cryosphere"] {
+  --ejb-color-tint: var(--ejb-tint-ice);
+  --ejb-color-tint-glow: rgba(191, 232, 255, 0.25);
+  --ejb-color-tint-subtle: rgba(191, 232, 255, 0.08);
+}
+[data-phenomenon="forest-canopy"], [data-phenomenon="canopy"], [data-phenomenon="biosphere"] {
+  --ejb-color-tint: var(--ejb-tint-canopy);
+  --ejb-color-tint-glow: rgba(139, 214, 107, 0.25);
+  --ejb-color-tint-subtle: rgba(139, 214, 107, 0.08);
+}
+[data-phenomenon="night-lights"], [data-phenomenon="urban"] {
+  --ejb-color-tint: var(--ejb-tint-night-lights);
+  --ejb-color-tint-glow: rgba(255, 200, 87, 0.25);
+  --ejb-color-tint-subtle: rgba(255, 200, 87, 0.08);
+}
+[data-phenomenon="greenhouse-co2"], [data-phenomenon="carbon"] {
+  --ejb-color-tint: var(--ejb-tint-carbon);
+  --ejb-color-tint-glow: rgba(201, 166, 107, 0.25);
+  --ejb-color-tint-subtle: rgba(201, 166, 107, 0.08);
+}
+
+/* Reduced Motion Override */
+@media (prefers-reduced-motion: reduce) {
+  :root, :host {
+    --ejb-transition-fast: 0ms !important;
+    --ejb-transition-medium: 0ms !important;
+    --ejb-transition-tint: 0ms !important;
+  }
+}
+
+/* Forced Colors (High Contrast) */
+@media (forced-colors: active) {
+  :root, :host {
+    --ejb-color-night: Canvas;
+    --ejb-color-dusk: Canvas;
+    --ejb-color-text: CanvasText;
+    --ejb-color-muted: CanvasText;
+    --ejb-color-limb: Highlight;
+    --ejb-color-tint: Highlight;
+    --ejb-color-dusk-border: ButtonBorder;
+  }
+}

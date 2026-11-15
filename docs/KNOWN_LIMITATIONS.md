@@ -22,6 +22,13 @@
   - The `EarthJukeboxAudioEngine` initializes in a clean suspended state.
   - The Web Audio graph resumes smoothly upon clicking "▶ Start Sonification" or toggling the extension popup, satisfying browser autoplay policies with zero console errors.
 
+### 1.3. Native Fullscreen Video Occlusion
+- **Constraint:** When an HTML5 video enters browser native fullscreen mode (`video.requestFullscreen()`), the browser places that video element into a dedicated top-layer rendering context. Any DOM element injected into the document body (including our Shadow DOM overlay) is visually occluded by the fullscreen element.
+- **Handling in Earth Jukebox:**
+  - The audio engine continues running completely uninterrupted.
+  - The global keyboard shortcut `Alt+Shift+S` continues to function.
+  - The extension popup remains accessible from the browser toolbar.
+
 ---
 
 ## 2. Visual Extraction & Calibration Boundaries
@@ -41,3 +48,9 @@
 - **Constraint:** Some public visualizations use artistic cyclical colormaps or lack embedded legends.
 - **Handling in Earth Jukebox:**
   - The system detects uncalibrated sources, abstains from fabricating physical quantities, and clearly indicates that the sonification is operating in **Visual Proxy Mode**.
+
+### 2.4. Colormap Coverage Discrepancies (GEDI Cyan 195° vs Low Physical Values)
+- **Constraint:** In satellite imagery where large ocean or background bodies dominate the frame, dominant hue calculations reflect the overall background (e.g., cyan ocean at 195°), while calibrated legend matching only identifies land pixels (or fails threshold coverage).
+- **Handling in Earth Jukebox:**
+  - Under Amendment B, the UI isolates raw metrics to the "Under the hood" drawer and explicitly uses Provenance Chips ("Based on the picture only" vs "Estimated from the legend").
+  - Missing or out-of-gamut sectors in the Listening Disc are rendered as dashed open outlines ("No usable data here") rather than defaulting to zero or falsely claiming physical canopy height.

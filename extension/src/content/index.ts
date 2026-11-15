@@ -14,6 +14,7 @@ import { adaptContractV1ToSfr } from '../sfr/adapters/contract-v1';
 import { AutonomousAudioEngineAdapter } from '../semantic/audio-profile-adapter';
 import { SascAudioEngineAdapter } from '../sasc/sasc-audio-adapter';
 import { classifyVisualPhenomenon } from '../audio/raagas';
+import { ListeningPanelController } from '../ui/listening-panel';
 import type { ScientificFeatureFrame } from '../sfr/types';
 import type { MappingProfile } from '../semantic/types';
 
@@ -32,6 +33,7 @@ class EarthJukeboxController {
   private audioEngine = new EarthJukeboxAudioEngine({ mode: 'raaga' });
   private autonomousAdapter = new AutonomousAudioEngineAdapter(this.audioEngine);
   private sascAdapter = new SascAudioEngineAdapter(this.audioEngine);
+  private listeningPanel: ListeningPanelController | null = null;
 
   // Analysis state (runs directly in-thread on 32x32 buffer, taking <0.08ms per tick with 0 CSP issues)
   private directPreviousFrame: Uint8ClampedArray | null = null;
@@ -60,6 +62,42 @@ class EarthJukeboxController {
     this.detectPresetForMedia(null);
     this.setupListeners();
     this.setupUserGestureUnlock();
+
+    // Initialize In-Page Listening Panel Overlay (Amendment B)
+    if (typeof document !== 'undefined') {
+      this.listeningPanel = new ListeningPanelController({
+        onTogglePlay: () => {
+          this.toggleExtensionEnabled();
+        },
+        onSetMode: (uiMode) => {
+          const modeMap: Record<string, SonificationMode> = {
+            exact: 'scientific',
+            musical: 'raaga',
+            sweep: 'scanner'
+          };
+          const targetMode = modeMap[uiMode] || 'raaga';
+          this.audioEngine.setMode(targetMode);
+          chrome.storage.local.set({ activeMode: targetMode });
+        },
+        onSetVolume: (volume) => {
+          this.audioEngine.setMasterVolume(volume);
+          chrome.storage.local.set({ masterVolume: volume });
+        },
+        onSeek: (normalized) => {
+          const media = this.mediaFinder.getActiveMedia();
+          if (media instanceof HTMLVideoElement && media.duration) {
+            media.currentTime = normalized * media.duration;
+          }
+        },
+        onToggleIdentity: (enabled) => {
+          this.autonomousAdapter.setSemanticEnhance(enabled);
+        },
+        onSoloVoice: (voice) => {
+          this.audioEngine.setSoloVoice(voice);
+        }
+      });
+      this.listeningPanel.setAnalyserNode(this.audioEngine.getAnalyserNode());
+    }
 
     // Load persisted settings (defaulting to enabled: true for automatic zero-lag sonification)
     chrome.storage.local.get(['extensionEnabled', 'masterVolume', 'activeMode'], (items) => {
@@ -293,8 +331,25 @@ class EarthJukeboxController {
           sendResponse({ success: true, activePreset: this.activePreset });
           return true;
         }
+
+        case 'TOGGLE_PANEL': {
+          if (this.listeningPanel) {
+            this.listeningPanel.setState('expanded');
+          }
+          sendResponse({ success: true });
+          return true;
+        }
       }
       return false;
+    });
+
+    // 3. Global Alt+Shift+S toggle
+    window.addEventListener('keydown', (e) => {
+      if (e.altKey && e.shiftKey && (e.key === 'S' || e.key === 's')) {
+        if (this.listeningPanel) {
+          this.listeningPanel.setState('expanded');
+        }
+      }
     });
   }
 
@@ -572,6 +627,30 @@ class EarthJukeboxController {
       }).catch(() => {});
     } catch {
       // Popup might be closed
+    }
+
+    // 5. Update In-Page Listening Panel Overlay (Amendment B)
+    if (this.listeningPanel) {
+      const media = this.mediaFinder.getActiveMedia();
+      const isMediaPlaying = media instanceof HTMLVideoElement ? !media.paused && !media.ended : false;
+      this.listeningPanel.updateFromInputs({
+        payload,
+        preset,
+        mappingProfile: this.lastMappingProfile,
+        telemetry: this.audioEngine.getTelemetry(),
+        engineState: {
+          isSonifying: this.isSonifying,
+          mode: this.audioEngine.getTelemetry().mode
+        },
+        mediaState: {
+          title: document.title || preset?.name,
+          currentTime: frame.t,
+          duration: media instanceof HTMLVideoElement ? media.duration : 60,
+          hasMedia: Boolean(media),
+          isPlaying: isMediaPlaying,
+          isFullscreen: Boolean(document.fullscreenElement)
+        }
+      });
     }
   }
 

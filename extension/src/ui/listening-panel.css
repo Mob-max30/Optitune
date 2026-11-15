@@ -1,0 +1,474 @@
+/**
+ * Earth Jukebox (EJB) — In-Page Listening Panel Stylesheet (Shadow DOM)
+ * Specification: Amendment B, Section 5 & 6b
+ */
+
+@import './tokens.css';
+
+:host {
+  all: initial;
+  position: fixed;
+  z-index: 2147483640;
+  font-family: var(--ejb-font-family);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ejb-color-text);
+  box-sizing: border-box;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+*, *::before, *::after {
+  box-sizing: inherit;
+}
+
+/* -------------------------------------------------------------
+   DOCK STATE (Compact Floating Bar ~56px)
+   ------------------------------------------------------------- */
+.ejb-dock {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  gap: var(--ejb-space-md);
+  padding: 0 var(--ejb-space-md);
+  background: var(--ejb-color-dusk);
+  border: 1px solid var(--ejb-color-dusk-border);
+  border-radius: var(--ejb-radius-round);
+  box-shadow: var(--ejb-shadow-dock);
+  backdrop-filter: blur(12px);
+  cursor: grab;
+  transition: transform var(--ejb-transition-fast), border-color var(--ejb-transition-fast);
+}
+
+.ejb-dock:active {
+  cursor: grabbing;
+}
+
+.ejb-dock:focus-visible {
+  outline: 2px solid var(--ejb-color-limb);
+  outline-offset: 3px;
+}
+
+.ejb-dock-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--ejb-color-night);
+  border: 1px solid var(--ejb-color-tint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ejb-color-tint);
+  flex-shrink: 0;
+}
+
+.ejb-dock-title {
+  font-size: 13px;
+  font-weight: 500;
+  max-width: 180px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--ejb-color-text);
+}
+
+.ejb-dock-btn {
+  background: transparent;
+  border: none;
+  color: var(--ejb-color-text);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background var(--ejb-transition-fast), color var(--ejb-transition-fast);
+}
+
+.ejb-dock-btn:hover {
+  background: var(--ejb-color-dusk-hover);
+  color: var(--ejb-color-limb);
+}
+
+.ejb-dock-btn:focus-visible {
+  outline: 2px solid var(--ejb-color-limb);
+  outline-offset: 2px;
+}
+
+/* -------------------------------------------------------------
+   EXPANDED STATE (Main Instrument Panel ~380px x ~620px)
+   ------------------------------------------------------------- */
+.ejb-panel {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 380px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  background: var(--ejb-color-night);
+  border: 1px solid var(--ejb-color-dusk-border);
+  border-radius: var(--ejb-radius-panel);
+  box-shadow: var(--ejb-shadow-panel);
+  backdrop-filter: blur(16px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ejb-color-dusk-hover) transparent;
+}
+
+.ejb-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: var(--ejb-space-lg) var(--ejb-space-lg) var(--ejb-space-xs);
+}
+
+.ejb-panel-title-area {
+  flex: 1;
+  min-width: 0;
+}
+
+.ejb-panel-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ejb-color-text);
+  margin: 0 0 6px 0;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ejb-header-actions {
+  display: flex;
+  gap: var(--ejb-space-xs);
+  margin-left: var(--ejb-space-sm);
+}
+
+/* Provenance Chip */
+.ejb-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  background: var(--ejb-color-dusk);
+  border: 1px solid var(--ejb-color-dusk-border);
+  border-radius: var(--ejb-radius-control);
+  font-size: 11px;
+  color: var(--ejb-color-muted);
+  cursor: help;
+  position: relative;
+}
+
+.ejb-chip svg {
+  width: 12px;
+  height: 12px;
+  color: var(--ejb-color-tint);
+}
+
+/* Disc & Canvas Container */
+.ejb-disc-container {
+  position: relative;
+  width: 300px;
+  height: 300px;
+  margin: var(--ejb-space-sm) auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ejb-disc-canvas {
+  width: 300px;
+  height: 300px;
+}
+
+/* Caption */
+.ejb-caption-box {
+  padding: 0 var(--ejb-space-lg);
+  margin-bottom: var(--ejb-space-md);
+  text-align: center;
+}
+
+.ejb-caption-text {
+  font-size: 13px;
+  color: var(--ejb-color-muted);
+  line-height: 1.45;
+  min-height: 38px;
+  transition: opacity var(--ejb-transition-medium);
+}
+
+/* Transport Controls */
+.ejb-transport {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ejb-space-lg);
+  padding: 0 var(--ejb-space-lg) var(--ejb-space-md);
+}
+
+.ejb-btn-play {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--ejb-color-limb);
+  color: var(--ejb-color-night);
+  border: none;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform var(--ejb-transition-fast), background var(--ejb-transition-fast);
+}
+
+.ejb-btn-play:hover {
+  transform: scale(1.06);
+  background: #AEE2F2;
+}
+
+.ejb-btn-play:focus-visible {
+  outline: 2px solid var(--ejb-color-text);
+  outline-offset: 3px;
+}
+
+.ejb-btn-icon {
+  background: transparent;
+  border: none;
+  color: var(--ejb-color-muted);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--ejb-radius-control);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color var(--ejb-transition-fast);
+}
+
+.ejb-btn-icon:hover {
+  color: var(--ejb-color-text);
+}
+
+/* Mode Selector (Exact / Musical / Sweep) */
+.ejb-mode-section {
+  padding: 0 var(--ejb-space-lg) var(--ejb-space-md);
+}
+
+.ejb-mode-label {
+  font-size: 12px;
+  color: var(--ejb-color-muted);
+  margin-bottom: 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ejb-mode-group {
+  display: flex;
+  background: var(--ejb-color-dusk);
+  border: 1px solid var(--ejb-color-dusk-border);
+  border-radius: var(--ejb-radius-control);
+  padding: 2px;
+}
+
+.ejb-mode-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ejb-color-muted);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background var(--ejb-transition-fast), color var(--ejb-transition-fast);
+}
+
+.ejb-mode-btn.active {
+  background: var(--ejb-color-night);
+  color: var(--ejb-color-text);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+
+.ejb-mode-btn:focus-visible {
+  outline: 2px solid var(--ejb-color-limb);
+  outline-offset: 1px;
+}
+
+.ejb-mode-desc {
+  font-size: 11px;
+  color: var(--ejb-color-muted);
+  margin-top: 4px;
+  min-height: 16px;
+}
+
+/* Identity Toggle */
+.ejb-identity-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--ejb-color-muted);
+  margin-top: 8px;
+  cursor: pointer;
+}
+
+.ejb-identity-toggle input[type="checkbox"] {
+  accent-color: var(--ejb-color-tint);
+  width: 14px;
+  height: 14px;
+}
+
+/* Legend Section ("What you're hearing") */
+.ejb-legend-section {
+  padding: var(--ejb-space-md) var(--ejb-space-lg);
+  border-top: 1px solid var(--ejb-color-dusk-border);
+}
+
+.ejb-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ejb-color-text);
+  margin: 0 0 var(--ejb-space-sm) 0;
+}
+
+.ejb-legend-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ejb-legend-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  background: var(--ejb-color-dusk);
+  border: 1px solid var(--ejb-color-dusk-border);
+  border-radius: var(--ejb-radius-control);
+  font-size: 12px;
+  transition: border-color var(--ejb-transition-fast);
+}
+
+.ejb-legend-row:hover, .ejb-legend-row:focus-within {
+  border-color: var(--ejb-color-limb);
+}
+
+.ejb-legend-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.ejb-legend-name {
+  font-weight: 500;
+  color: var(--ejb-color-text);
+}
+
+.ejb-legend-desc {
+  font-size: 11px;
+  color: var(--ejb-color-muted);
+}
+
+.ejb-btn-solo {
+  background: transparent;
+  border: 1px solid var(--ejb-color-dusk-border);
+  color: var(--ejb-color-muted);
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-left: 8px;
+}
+
+.ejb-btn-solo.active {
+  background: var(--ejb-color-limb);
+  color: var(--ejb-color-night);
+  border-color: var(--ejb-color-limb);
+}
+
+/* Under the Hood Drawer */
+.ejb-drawer {
+  border-top: 1px solid var(--ejb-color-dusk-border);
+  padding: var(--ejb-space-md) var(--ejb-space-lg);
+  background: rgba(11, 16, 32, 0.4);
+}
+
+.ejb-drawer-summary {
+  font-size: 12px;
+  color: var(--ejb-color-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ejb-drawer-content {
+  margin-top: var(--ejb-space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--ejb-space-sm);
+  font-size: 11px;
+  color: var(--ejb-color-muted);
+}
+
+.ejb-drawer-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.ejb-drawer-stat {
+  background: var(--ejb-color-dusk);
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: flex;
+  justify-content: space-between;
+}
+
+/* Accessible Overlay Grid */
+.ejb-grid-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 300px;
+  height: 300px;
+  display: grid;
+  grid-template-rows: repeat(4, 1fr);
+  grid-template-columns: repeat(8, 1fr);
+  opacity: 0;
+  pointer-events: auto;
+}
+
+.ejb-grid-cell:focus-visible {
+  outline: 2px solid var(--ejb-color-limb);
+  opacity: 1;
+  background: rgba(143, 211, 232, 0.2);
+}
+
+/* Data View Table */
+.ejb-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  text-align: right;
+}
+
+.ejb-data-table th, .ejb-data-table td {
+  padding: 4px 6px;
+  border: 1px solid var(--ejb-color-dusk-border);
+}
+
+.ejb-data-table th {
+  background: var(--ejb-color-dusk);
+  color: var(--ejb-color-muted);
+  font-weight: 500;
+  text-align: left;
+}

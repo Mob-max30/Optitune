@@ -63,6 +63,7 @@ export class EarthJukeboxAudioEngine {
   private currentMode: SonificationMode = 'raaga';
   private activeProfile: PresetAudioProfile = PRESET_AUDIO_PROFILES['gedi-forest-height'];
   private smoother = new FrameMetricsSmoother(220);
+  private soloVoice: string | null = null;
 
   private eventsTriggeredCount = 0;
   private lastTelemetry: AudioTelemetry = {
@@ -275,6 +276,18 @@ export class EarthJukeboxAudioEngine {
   }
 
   /**
+   * Additive method: Soloes a single synthesizer layer (Amendment B).
+   * Pass null to restore standard multi-stream mix.
+   */
+  setSoloVoice(voice: string | null): void {
+    this.soloVoice = voice;
+  }
+
+  getSoloVoice(): string | null {
+    return this.soloVoice;
+  }
+
+  /**
    * Processes a single visual frame payload (Contract v1).
    * Can be invoked directly or automatically via window "ejb:frame" CustomEvent.
    */
@@ -392,8 +405,15 @@ export class EarthJukeboxAudioEngine {
     const smoothedPan = this.smoother.pan.step(spatial.pan, bypassSmoothing);
     const smoothedCutoff = this.smoother.filterCutoff.step(targetCutoff, bypassSmoothing);
 
+    // Solo Layer Gate (Amendment B additive capability)
+    const isSolo = Boolean(this.soloVoice);
+    const allowLead = !isSolo || this.soloVoice === 'lead_voice';
+    const allowBass = !isSolo || this.soloVoice === 'bass_voice';
+    const allowPad = !isSolo || this.soloVoice === 'pad_voice';
+    const allowNoise = !isSolo || this.soloVoice === 'noise_voice';
+
     // 6. Update Primary Lead Voice (Silent in Raaga mode as IndianMelodicVoice takes lead)
-    const effectiveLeadGain = this.currentMode === 'raaga' ? 0.0 : smoothedGain;
+    const effectiveLeadGain = (this.currentMode === 'raaga' || !allowLead) ? 0.0 : smoothedGain;
     this.leadVoice.update(
       smoothedFreq,
       effectiveLeadGain,
@@ -413,17 +433,17 @@ export class EarthJukeboxAudioEngine {
         Math.min(150, this.activeProfile.baseFrequency),
         'log'
       );
-      const bassGain = Math.max(0.12, Math.min(0.50, 0.20 + metrics.brightness * 0.28));
+      const bassGain = allowBass ? Math.max(0.12, Math.min(0.50, 0.20 + metrics.brightness * 0.28)) : 0.0;
       const bassCutoff = 110 + metrics.motion * 250;
       this.bassVoice.update(bassFreq, bassGain, bassCutoff, 0.08);
 
-      if (metrics.motion > 0.15 || (events && events.length > 0)) {
+      if (allowBass && (metrics.motion > 0.15 || (events && events.length > 0))) {
         this.bassVoice.pulse(bassFreq, 0.42, 0.3);
       }
     }
 
     // 7. Update Regional Ambient Pad (4 latitudinal rows) - silenced in Raaga mode to maintain acoustic purity
-    if (this.currentMode !== 'raaga') {
+    if (this.currentMode !== 'raaga' && allowPad) {
       const padPresence = 0.1 + metrics.brightness * 0.4;
       this.padVoice.update(
         spatial.rowEnergies,
@@ -436,7 +456,7 @@ export class EarthJukeboxAudioEngine {
     }
 
     // 8. Update Texture / Aerosol Noise Voice - silenced in Raaga mode to maintain acoustic purity
-    if (this.currentMode !== 'raaga') {
+    if (this.currentMode !== 'raaga' && allowNoise) {
       const noiseIntensity = metrics.motion > 0.05 || (layers && Object.keys(layers).length > 0)
         ? metrics.motion * 0.8
         : 0.0;
