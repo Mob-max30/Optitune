@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "OptiTone",
-  "version": "1.0.0",
+  "version": "1.1.1",
   "description": "Hear NASA Earth visualizations: real-time algorithmic sonification of EIC and SVS videos for blind, low-vision, and curious listeners.",
   "permissions": [
     "activeTab",

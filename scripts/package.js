@@ -13,8 +13,12 @@ if (!fs.existsSync(distDir)) {
   process.exit(1);
 }
 
+const pkg = JSON.parse(fs.readFileSync(path.resolve(rootDir, 'package.json'), 'utf-8'));
+const version = pkg.version || '1.1.1';
+const zipName = `optitone-v${version}.zip`;
+
 fs.mkdirSync(releasesDir, { recursive: true });
-const zipPath = path.resolve(releasesDir, 'optitone-v1.0.0.zip');
+const zipPath = path.resolve(releasesDir, zipName);
 
 const output = fs.createWriteStream(zipPath);
 const archive = archiver('zip', {
@@ -24,7 +28,7 @@ const archive = archiver('zip', {
 output.on('close', () => {
   const bytes = archive.pointer();
   const kb = (bytes / 1024).toFixed(1);
-  console.log(`[Package Success] Created release archive: releases/optitone-v1.0.0.zip (${kb} KB)`);
+  console.log(`[Package Success] Created release archive: releases/${zipName} (${kb} KB)`);
 });
 
 archive.on('error', (err) => {

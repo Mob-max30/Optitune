@@ -5,7 +5,7 @@
 - **Visual Pipeline Author:** Ujwal A
 - **Sonification Engine Author:** Pranav K
 - **Interface Protocol:** `window` `CustomEvent` bus in isolated world / main world
-- **Version:** `1.0.0`
+- **Version:** `1.1.1`
 
 ---
 

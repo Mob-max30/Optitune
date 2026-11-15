@@ -1,6 +1,6 @@
 {
   "name": "optitone",
-  "version": "1.0.0",
+  "version": "1.1.1",
   "description": "OptiTone — Real-time Visual Analysis & Sonification Pipeline for NASA EIC & SVS Visualizations",
   "type": "module",
   "scripts": {

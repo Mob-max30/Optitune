@@ -97,7 +97,7 @@ npm run build
 npm run package
 ```
 
-Release archive will be generated at `releases/optitone-v1.0.0.zip`.
+Release archive will be generated at `releases/optitone-v1.1.1.zip`.
 
 ---
 
