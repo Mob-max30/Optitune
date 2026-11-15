@@ -288,9 +288,9 @@ export class EarthJukeboxAudioEngine {
 
     if (now - this.lastPulseTime >= pulseInterval || bypassSmoothing) {
       // Note velocity reflects visual luminance and feature prominence at maximum audio presence
-      const pulseVelocity = Math.max(0.35, Math.min(1.0, 0.40 + metrics.brightness * 0.60));
-      // Organic decay time
-      const decayDuration = terrain === 'ocean' ? 0.34 : (terrain === 'forest' ? 0.22 : 0.26);
+      const pulseVelocity = Math.max(0.60, Math.min(1.0, 0.70 + metrics.brightness * 0.30));
+      // Organic decay time (generous resonance for full, rich acoustic sound)
+      const decayDuration = terrain === 'ocean' ? 0.42 : (terrain === 'forest' ? 0.32 : 0.36);
 
       this.pulseVoice.trigger(
         targetFrequency,
@@ -313,7 +313,7 @@ export class EarthJukeboxAudioEngine {
       dataDrivenCutoff * terrainAudio.filterBias + metrics.motion * 800
     );
 
-    const targetLeadGain = Math.max(0.12, Math.min(0.40, 0.15 + metrics.brightness * 0.25));
+    const targetLeadGain = Math.max(0.35, Math.min(0.80, 0.45 + metrics.brightness * 0.35));
 
     const smoothedFreq   = this.smoother.frequency.step(targetFrequency, bypassSmoothing);
     const smoothedGain   = this.smoother.gain.step(targetLeadGain, bypassSmoothing);
@@ -373,11 +373,11 @@ export class EarthJukeboxAudioEngine {
     this.ctx = new AudioContextClass();
 
     this.compressor = this.ctx.createDynamicsCompressor();
-    this.compressor.threshold.setValueAtTime(-18, this.ctx.currentTime);
-    this.compressor.knee.setValueAtTime(12, this.ctx.currentTime);
-    this.compressor.ratio.setValueAtTime(6, this.ctx.currentTime);
+    this.compressor.threshold.setValueAtTime(-4, this.ctx.currentTime);
+    this.compressor.knee.setValueAtTime(6, this.ctx.currentTime);
+    this.compressor.ratio.setValueAtTime(2.5, this.ctx.currentTime);
     this.compressor.attack.setValueAtTime(0.003, this.ctx.currentTime);
-    this.compressor.release.setValueAtTime(0.15, this.ctx.currentTime);
+    this.compressor.release.setValueAtTime(0.12, this.ctx.currentTime);
 
     this.masterGain = this.ctx.createGain();
     this.masterGain.gain.setValueAtTime(this.masterVolume, this.ctx.currentTime);

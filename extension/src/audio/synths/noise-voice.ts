@@ -92,7 +92,7 @@ export class TextureNoiseVoice {
       }
     }
 
-    const safeGain = Math.max(0, Math.min(0.35, intensity * 0.3));
+    const safeGain = Math.max(0, Math.min(0.50, intensity * 0.6));
     this.gainNode.gain.setTargetAtTime(safeGain, now, timeConstant);
     this.filter.frequency.setTargetAtTime(centerFreq, now, timeConstant);
 

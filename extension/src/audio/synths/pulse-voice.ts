@@ -61,10 +61,12 @@ export class FeaturePulseVoice {
 
       const gainNode = this.ctx.createGain();
       gainNode.gain.setValueAtTime(0.0001, now);
-      // Crisp 5ms transient attack
+      // Crisp 6ms transient attack
       gainNode.gain.linearRampToValueAtTime(safeGain, now + 0.006);
-      // Natural exponential acoustic decay
-      gainNode.gain.exponentialRampToValueAtTime(0.0001, now + safeDecay);
+      // Musical sustain and smooth decay (ensures note stays full, resonant, and clearly audible)
+      const sustainTime = now + safeDecay * 0.45;
+      gainNode.gain.linearRampToValueAtTime(safeGain * 0.75, sustainTime);
+      gainNode.gain.linearRampToValueAtTime(0.0001, now + safeDecay);
 
       osc.connect(filter);
       filter.connect(gainNode);

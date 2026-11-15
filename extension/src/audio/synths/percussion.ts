@@ -45,7 +45,7 @@ export class PercussionVoice {
 
     // Snappy exponential gain envelope (0ms attack, 70ms release)
     const gainNode = this.ctx.createGain();
-    const peakGain = Math.max(0.01, Math.min(0.8, 0.45 * intensity * masterVolume));
+    const peakGain = Math.max(0.01, Math.min(1.0, 0.85 * intensity * masterVolume));
     gainNode.gain.setValueAtTime(peakGain, now);
     gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
 
