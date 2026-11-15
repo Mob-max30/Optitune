@@ -72,41 +72,106 @@ Clicking the OptiTone icon opens a clean control popup containing an on and off 
 
 ![Extension Toggle On](docs/images/10_extension_toggle_on.jpg)
 
-Clicking the toggle switch turns it on with a glowing green indicator, enabling live synchronised sound generation for the playing scientific video.
+Clicking the toggle switch turns it on with a glowing green indicator, enabling live synchronised sound generation for playing and testing with NASA EIC videos from the link :
+https://svs.gsfc.nasa.gov/gallery/earth-information-center/
 
 ## Project File Structure
 
-Below is the directory structure of the repository:
-
-* docs/
-  * CONTRACT.md: Specification for the standardized ejb:frame v1 scientific event contract.
-  * METHODOLOGY.md: Complete scientific documentation, mathematical models, color calibration, and data provenance.
-  * PRIVACY.md: Privacy policy confirming local client side execution with zero data collection.
-  * images/: Step by step visual screenshots for downloading, installing, and using OptiTone.
-* extension/
-  * manifest.json: Chrome Manifest V3 configuration defining content scripts, background worker, and permissions.
-  * vite.config.ts: Build configuration for bundling extension components.
-  * public/: Static icons and favicon assets in multiple resolutions.
-  * src/
-    * analysis/: Computer vision algorithms including color, luminance, motion delta, normalization, and regional spatial grid calculations.
-    * audio/: Web Audio API synthesis engine, pitch scales, temporal smoothing, spatial panning, and sound profiles.
-    * audio/synths/: Specialized synthesizer voice modules including base lead voice, noise voice, pulse voice, and percussion transients.
-    * background/: Service worker handling lifecycle events and extension management.
-    * content/: Media finder, video frame capture pipeline, and event emitters running inside the web page context.
-    * contract/: TypeScript definitions and data contract schemas.
-    * offscreen/: Offscreen document facilitating background audio context management.
-    * popup/: Browser action popup interface with user controls and live metrics display.
-    * presets/: Calibrated configuration profiles for NASA Earth Information Center and Scientific Visualization Studio datasets.
-* scripts/
-  * build-extension.js: Automated build script producing unpacked extension bundles.
-  * generate-icons.js: Utility generating multi size icon assets.
-  * package.js: Distribution script packaging release archives for GitHub.
-* test/: Comprehensive Vitest test suites verifying audio engine synthesis, color detection, motion tracking, contracts, and spatial algorithms.
-* mock-emitter.ts: Synthetic data emitter for automated end to end testing.
-* package.json: Project configuration, scripts, and runtime dependencies.
-* tsconfig.json: TypeScript compiler options and build targets.
-* vitest.config.ts: Unit and integration testing configuration.
-* LICENSE: MIT open source license.
+```text
+optitone/
+├── docs/
+│   ├── images/
+│   │   ├── 01_github_releases.jpg
+│   │   ├── 02_download_zip_asset.jpg
+│   │   ├── 03_extract_zip_folder.jpg
+│   │   ├── 04_chrome_extensions_developer_mode.png
+│   │   ├── 05_load_unpacked_button.png
+│   │   ├── 06_select_extracted_folder.png
+│   │   ├── 07_optitone_extension_installed.jpg
+│   │   ├── 08_extension_in_toolbar.jpg
+│   │   ├── 09_extension_toggle_off.jpg
+│   │   └── 10_extension_toggle_on.jpg
+│   ├── CONTRACT.md
+│   ├── METHODOLOGY.md
+│   └── PRIVACY.md
+├── extension/
+│   ├── public/
+│   │   ├── icons/
+│   │   │   ├── icon16.png
+│   │   │   ├── icon32.png
+│   │   │   ├── icon48.png
+│   │   │   └── icon128.png
+│   │   ├── favicon.ico
+│   │   └── favicon.png
+│   ├── src/
+│   │   ├── analysis/
+│   │   │   ├── color.ts
+│   │   │   ├── legend.ts
+│   │   │   ├── luminance.ts
+│   │   │   ├── motion.ts
+│   │   │   ├── normalize.ts
+│   │   │   └── regions.ts
+│   │   ├── audio/
+│   │   │   ├── synths/
+│   │   │   │   ├── base-voice.ts
+│   │   │   │   ├── noise-voice.ts
+│   │   │   │   ├── percussion.ts
+│   │   │   │   └── pulse-voice.ts
+│   │   │   ├── autorange.ts
+│   │   │   ├── engine.ts
+│   │   │   ├── index.ts
+│   │   │   ├── profiles.ts
+│   │   │   ├── scales.ts
+│   │   │   ├── smoother.ts
+│   │   │   ├── spatial.ts
+│   │   │   └── types.ts
+│   │   ├── background/
+│   │   │   └── service-worker.ts
+│   │   ├── content/
+│   │   │   ├── capture.ts
+│   │   │   ├── emitter.ts
+│   │   │   ├── index.ts
+│   │   │   └── media-finder.ts
+│   │   ├── contract/
+│   │   │   └── types.ts
+│   │   ├── offscreen/
+│   │   │   ├── offscreen.html
+│   │   │   └── offscreen.ts
+│   │   ├── popup/
+│   │   │   ├── popup.css
+│   │   │   ├── popup.html
+│   │   │   └── popup.ts
+│   │   └── presets/
+│   │       └── visualizations.json
+│   ├── manifest.json
+│   └── vite.config.ts
+├── scripts/
+│   ├── build-extension.js
+│   ├── generate-icons.js
+│   └── package.js
+├── test/
+│   ├── audio-profiles.test.ts
+│   ├── autorange.test.ts
+│   ├── color.test.ts
+│   ├── contract.test.ts
+│   ├── engine.test.ts
+│   ├── legend.test.ts
+│   ├── luminance.test.ts
+│   ├── mock-audio.ts
+│   ├── motion.test.ts
+│   ├── normalize.test.ts
+│   ├── regions.test.ts
+│   ├── scales.test.ts
+│   ├── smoother.test.ts
+│   └── spatial.test.ts
+├── LICENSE
+├── mock-emitter.ts
+├── package-lock.json
+├── package.json
+├── README.md
+├── tsconfig.json
+└── vitest.config.ts
+```
 
 ## Technology Stack
 
