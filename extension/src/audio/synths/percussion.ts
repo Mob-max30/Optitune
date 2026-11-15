@@ -1,5 +1,5 @@
 /**
- * Earth Jukebox (EJB) — Percussion & Transient Synthesizer Voice
+ * OptiTone — Percussion & Transient Synthesizer Voice
  *
  * Synthesizes snappy, localized acoustic percussion transients for discrete phenomena:
  * - ISS Lightning strikes (instant localized electrical discharges)

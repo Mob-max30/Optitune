@@ -1,5 +1,5 @@
 /**
- * Earth Jukebox (EJB) — Lead Synthesizer Voice
+ * OptiTone — Lead Synthesizer Voice
  *
  * Primary physical measurement voice driven by dataValue / brightness.
  * Uses dual-detuned oscillators through a resonant BiquadFilter and StereoPanner.

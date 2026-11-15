@@ -8,12 +8,12 @@ import { extractColorMetrics } from '../analysis/color';
 import { prepareLegendLUT, calculateAverageLegendValue, type PreparedLegendLUT } from '../analysis/legend';
 import { calculateRegionGrid, calculateSpatialProfiles } from '../analysis/regions';
 import { calculateMotionAndEvents } from '../analysis/motion';
-import { EarthJukeboxAudioEngine, type SonificationMode } from '../audio';
+import { OptiToneAudioEngine, type SonificationMode } from '../audio';
 import { clamp, round3 } from '../analysis/normalize';
 
 const PRESETS = presetsData as Record<string, PresetConfig>;
 
-class EarthJukeboxController {
+class OptiToneController {
   private extensionEnabled = true;
   private isSonifying = false;
   private manualPresetOverride = false;
@@ -21,7 +21,7 @@ class EarthJukeboxController {
   private emitter = new EjbEmitter();
   private mediaFinder: MediaFinder;
   private capturePipeline: FrameCapturePipeline | null = null;
-  private audioEngine = new EarthJukeboxAudioEngine({ mode: 'scientific' });
+  private audioEngine = new OptiToneAudioEngine({ mode: 'scientific' });
 
   // Analysis state (runs directly in-thread on 32x32 buffer, taking <0.08ms per tick with 0 CSP issues)
   private directPreviousFrame: Uint8ClampedArray | null = null;
@@ -524,4 +524,4 @@ class EarthJukeboxController {
 }
 
 // Instantiate controller when content script loads
-new EarthJukeboxController();
+new OptiToneController();

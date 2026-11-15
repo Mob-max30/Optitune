@@ -1,5 +1,5 @@
 /**
- * Earth Jukebox (EJB) — NASA Visualization Audio Profiles
+ * OptiTone — NASA Visualization Audio Profiles
  *
  * Authored by Pranav K for the NASA Space Apps Challenge 2026.
  *

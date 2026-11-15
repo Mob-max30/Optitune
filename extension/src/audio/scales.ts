@@ -1,5 +1,5 @@
 /**
- * Earth Jukebox (EJB) — Musical Scales & Frequency Mappers
+ * OptiTone — Musical Scales & Frequency Mappers
  *
  * Implements deterministic mapping between normalized physical data [0.0, 1.0]
  * and human auditory perception (frequencies in Hertz), supporting both

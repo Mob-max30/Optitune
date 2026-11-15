@@ -1,4 +1,4 @@
-# Earth Jukebox — Data Contract Specification (v1)
+# OptiTone — Data Contract Specification (v1)
 
 **NASA Space Apps Challenge 2026 — "The Earth Information Jukebox"**
 

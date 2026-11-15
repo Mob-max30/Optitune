@@ -1,5 +1,5 @@
 /**
- * Earth Jukebox (EJB) — Spatial Audio & Regional Grid Matrix Analyzer
+ * OptiTone — Spatial Audio & Regional Grid Matrix Analyzer
  *
  * Translates the 4x8 spatial grid matrix (32 cells) from the visual pipeline
  * into continuous stereo panning (-1.0 to +1.0) and geographic quadrant polyphony.

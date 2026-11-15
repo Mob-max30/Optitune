@@ -1,4 +1,4 @@
-# Earth Jukebox — Technical Methodology & System Architecture
+# OptiTone — Technical Methodology & System Architecture
 
 **NASA Space Apps Challenge 2026 — "The Earth Information Jukebox"**  
 **Authors:** Ujwal A (Visual Analysis & Extension Lead) & Pranav K (Sonification & Audio Engine Lead)  
@@ -15,7 +15,7 @@ This creates fundamental barriers:
 2. **STEM Educators and Students:** Auditory data representation engages multimodal cognition, helping neurodiverse learners perceive temporal patterns, cyclic dynamics, and spatial correlations simultaneously.
 3. **General Public & Museum Visitors:** Sonification creates an emotionally resonant, visceral connection to Earth system science, transforming passive watching into an immersive acoustic landscape.
 
-Earth Jukebox solves this by bridging the gap between visual pixels and acoustic frequencies in real time, directly inside the user's browser, with zero backend latency and absolute privacy.
+OptiTone solves this by bridging the gap between visual pixels and acoustic frequencies in real time, directly inside the user's browser, with zero backend latency and absolute privacy.
 
 ---
 
@@ -230,7 +230,7 @@ The audio graph feeds six simultaneous acoustic voices into a master bus:
 1. **Rendered Frames vs. Raw Telemetry:** The extension analyzes rendered MP4 video frames and canvas contexts, not raw NetCDF/HDF5 scientific arrays. Lossy video compression (H.264/H.265 artifacts, chroma subsampling 4:2:0) introduces subtle color variations. Our CIELAB nearest-stop tolerance ($\Delta E \le 36.0$) absorbs compression noise while preserving physical classification accuracy.
 2. **Dynamic Range Discretization:** Video frames quantize continuous physical fields into 8-bit per channel RGB. Features whose physical variance falls below the 8-bit quantization threshold cannot be detected.
 3. **Orbital & Camera Motion:** On visualizations featuring rotating 3D planetary globes or orbiting cameras (e.g. 3D Atmospheric River), visual motion differencing reflects camera rotation in addition to atmospheric mass movement.
-4. **Cross-Origin Security Boundaries:** Videos hosted on third-party CDNs without standard CORS headers (`Access-Control-Allow-Origin: *`) taint the canvas element. Earth Jukebox handles this through its built-in `chrome.tabCapture` offscreen document fallback pipeline.
+4. **Cross-Origin Security Boundaries:** Videos hosted on third-party CDNs without standard CORS headers (`Access-Control-Allow-Origin: *`) taint the canvas element. OptiTone handles this through its built-in `chrome.tabCapture` offscreen document fallback pipeline.
 
 ---
 
@@ -247,7 +247,7 @@ In alignment with NASA's core commitment to accessibility:
 
 ## 9. NASA Data Credits & References
 
-All scientific visualizations supported by Earth Jukebox are sourced directly from NASA's open scientific repositories:
+All scientific visualizations supported by OptiTone are sourced directly from NASA's open scientific repositories:
 
 1. **GEDI Forest Canopy Height (2020)**  
    *NASA Goddard Space Flight Center / Scientific Visualization Studio*  
@@ -283,7 +283,7 @@ All scientific visualizations supported by Earth Jukebox are sourced directly fr
 10. **Data Sonification: Caldwell 73 (Conceptual Precedent)**  
     *NASA / Chandra X-ray Center / SYSTEM Sounds*  
     URL: [https://svs.gsfc.nasa.gov/13786/](https://svs.gsfc.nasa.gov/13786/)  
-    Inspiration for Earth Jukebox's Caldwell-73 horizontal column-scanning mode.
+    Inspiration for OptiTone's continuous frequency mapping mode.
 
 ---
 

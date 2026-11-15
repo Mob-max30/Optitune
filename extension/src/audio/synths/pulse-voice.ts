@@ -1,5 +1,5 @@
 /**
- * Earth Jukebox (EJB) — Feature Pulse Voice
+ * OptiTone — Feature Pulse Voice
  *
  * Implements articulate note events (attacks and decays) for active visual features.
  *

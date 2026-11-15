@@ -1,5 +1,5 @@
 /**
- * Earth Jukebox (EJB) — Adaptive Dynamic Auto-Ranger
+ * OptiTone — Adaptive Dynamic Auto-Ranger
  *
  * Expands narrow data ranges (e.g. videos where physical values or brightness
  * fluctuate only between 0.42 and 0.50) into the full [0.0, 1.0] acoustic scale.

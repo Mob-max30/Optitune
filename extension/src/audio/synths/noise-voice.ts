@@ -1,5 +1,5 @@
 /**
- * Earth Jukebox (EJB) — Textural Noise & Layer Synthesizer Voice
+ * OptiTone — Textural Noise & Layer Synthesizer Voice
  *
  * Synthesizes filtered particulate and fluid motion soundscapes:
  * - GEOS Aerosols (smoke, dust, sea salt layers)

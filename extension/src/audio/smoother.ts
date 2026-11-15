@@ -1,5 +1,5 @@
 /**
- * Earth Jukebox (EJB) — Parameter Smoother
+ * OptiTone — Parameter Smoother
  *
  * Implements exponential moving average (EMA) smoothing for audio parameters
  * driven by 10–15 Hz visual analysis frames.

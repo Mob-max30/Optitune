@@ -1,5 +1,5 @@
 /**
- * Earth Jukebox (EJB) — Sonification Audio Engine
+ * OptiTone — Sonification Audio Engine
  *
  * Authored by Pranav K & Ujwal A for the NASA Space Apps Challenge 2026.
  *
@@ -67,7 +67,7 @@ const TERRAIN_AUDIO: Record<TerrainType, TerrainAudio> = {
   cloud:   { oscType: 'sine',     filterType: 'lowpass',  filterBias: 0.85 },
 };
 
-export class EarthJukeboxAudioEngine {
+export class OptiToneAudioEngine {
   private ctx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
   private compressor: DynamicsCompressorNode | null = null;
@@ -134,7 +134,7 @@ export class EarthJukeboxAudioEngine {
       } catch {}
     }
 
-    console.log(`[Audio Engine] Earth Jukebox Sonification started (Mode: ${this.currentMode}).`);
+    console.log(`[Audio Engine] OptiTone Sonification started (Mode: ${this.currentMode}).`);
   }
 
   pause(): void {
@@ -169,7 +169,7 @@ export class EarthJukeboxAudioEngine {
     this.isRunning = false;
     this.pause();
     this.detachEventListeners();
-    console.log('[Audio Engine] Earth Jukebox Sonification stopped.');
+    console.log('[Audio Engine] OptiTone Sonification stopped.');
   }
 
   setMode(mode: SonificationMode): void {
@@ -474,3 +474,5 @@ export class EarthJukeboxAudioEngine {
     }
   }
 }
+
+export const EarthJukeboxAudioEngine = OptiToneAudioEngine;

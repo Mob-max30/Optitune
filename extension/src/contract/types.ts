@@ -1,5 +1,5 @@
 /**
- * Earth Jukebox (EJB) — Core Contract Types (v1)
+ * OptiTone — Core Contract Types (v1)
  *
  * Shared data contract between the visual analysis pipeline (Ujwal)
  * and the sonification audio engine (Pranav).

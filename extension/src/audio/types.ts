@@ -1,5 +1,5 @@
 /**
- * Earth Jukebox (EJB) — Sonification Engine Types
+ * OptiTone — Sonification Engine Types
  *
  * Authored by Pranav K for the NASA Space Apps Challenge 2026.
  */

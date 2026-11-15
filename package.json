@@ -1,7 +1,7 @@
 {
-  "name": "earth-jukebox",
+  "name": "optitone",
   "version": "1.0.0",
-  "description": "Earth Jukebox — Real-time Visual Analysis & Sonification Pipeline for NASA EIC & SVS Visualizations",
+  "description": "OptiTone — Real-time Visual Analysis & Sonification Pipeline for NASA EIC & SVS Visualizations",
   "type": "module",
   "scripts": {
     "dev": "vite build --watch -c extension/vite.config.ts",
@@ -16,7 +16,7 @@
   "keywords": [
     "nasa",
     "space-apps-2026",
-    "earth-jukebox",
+    "optitone",
     "sonification",
     "accessibility",
     "chrome-extension",

@@ -23,7 +23,7 @@ async function buildAll() {
       target: 'es2022',
       lib: {
         entry: resolve(extDir, 'src/content/index.ts'),
-        name: 'EarthJukeboxContent',
+        name: 'OptiToneContent',
         formats: ['iife'],
         fileName: () => 'content.js'
       }

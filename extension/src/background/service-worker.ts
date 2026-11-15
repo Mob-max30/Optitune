@@ -1,5 +1,5 @@
 /**
- * Earth Jukebox — Background Service Worker (Manifest V3)
+ * OptiTone — Background Service Worker (Manifest V3)
  *
  * Coordinates extension badge, keyboard shortcuts, popup messaging,
  * and offscreen document lifecycle for cross-origin tabCapture.
@@ -8,7 +8,7 @@
 chrome.runtime.onInstalled.addListener(() => {
   chrome.action.setBadgeBackgroundColor({ color: '#0B3D91' }); // NASA blue
   chrome.action.setBadgeText({ text: '' });
-  console.log('[EJB Background] Earth Jukebox installed successfully.');
+  console.log('[OptiTone Background] OptiTone installed successfully.');
 });
 
 // Handle keyboard shortcut (e.g. Alt+Shift+S)

@@ -14,7 +14,7 @@ if (!fs.existsSync(distDir)) {
 }
 
 fs.mkdirSync(releasesDir, { recursive: true });
-const zipPath = path.resolve(releasesDir, 'earth-jukebox-v1.0.0.zip');
+const zipPath = path.resolve(releasesDir, 'optitone-v1.0.0.zip');
 
 const output = fs.createWriteStream(zipPath);
 const archive = archiver('zip', {
@@ -24,7 +24,7 @@ const archive = archiver('zip', {
 output.on('close', () => {
   const bytes = archive.pointer();
   const kb = (bytes / 1024).toFixed(1);
-  console.log(`[Package Success] Created release archive: releases/earth-jukebox-v1.0.0.zip (${kb} KB)`);
+  console.log(`[Package Success] Created release archive: releases/optitone-v1.0.0.zip (${kb} KB)`);
 });
 
 archive.on('error', (err) => {

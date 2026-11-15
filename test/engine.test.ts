@@ -1,14 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { setupWebAudioMock } from './mock-audio';
-import { EarthJukeboxAudioEngine } from '../extension/src/audio/engine';
+import { OptiToneAudioEngine } from '../extension/src/audio/engine';
 import type { EjbFramePayload } from '../extension/src/contract/types';
 
-describe('Earth Jukebox Audio Engine (Pranav)', () => {
-  let engine: EarthJukeboxAudioEngine;
+describe('OptiTone Audio Engine', () => {
+  let engine: OptiToneAudioEngine;
 
   beforeEach(() => {
     setupWebAudioMock();
-    engine = new EarthJukeboxAudioEngine({ mode: 'scientific', masterVolume: 0.8 });
+    engine = new OptiToneAudioEngine({ mode: 'scientific', masterVolume: 0.8 });
   });
 
   afterEach(() => {

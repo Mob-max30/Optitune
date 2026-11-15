@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Earth Jukebox",
+  "name": "OptiTone",
   "version": "1.0.0",
   "description": "Hear NASA Earth visualizations: real-time algorithmic sonification of EIC and SVS videos for blind, low-vision, and curious listeners.",
   "permissions": [
@@ -20,7 +20,7 @@
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Earth Jukebox"
+    "default_title": "OptiTone"
   },
   "background": {
     "service_worker": "service-worker.js",
@@ -48,7 +48,7 @@
         "default": "Alt+Shift+S",
         "mac": "Alt+Shift+S"
       },
-      "description": "Toggle Earth Jukebox Sonification"
+      "description": "Toggle OptiTone Sonification"
     }
   },
   "icons": {

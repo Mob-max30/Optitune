@@ -1,5 +1,5 @@
 /**
- * Earth Jukebox (EJB) — Mock Frame Emitter
+ * OptiTone — Mock Frame Emitter
  *
  * Simulates real-time EJB visual metrics events (CustomEvent "ejb:frame")
  * on `window` for Pranav's synth engine development and testing,

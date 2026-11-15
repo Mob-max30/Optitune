@@ -1,10 +1,10 @@
 /**
- * Earth Jukebox (EJB) — Audio Engine Entrypoint
+ * OptiTone — Audio Engine Entrypoint
  *
  * Authored by Pranav K for NASA Space Apps Challenge 2026.
  */
 
-export { EarthJukeboxAudioEngine } from './engine';
+export { OptiToneAudioEngine, EarthJukeboxAudioEngine } from './engine';
 export * from './types';
 export * from './scales';
 export * from './smoother';

@@ -1,4 +1,4 @@
-# 🌍 Earth Jukebox — Real-Time NASA Visual Sonification
+# 🌍 OptiTone — Real-Time NASA Visual Sonification
 
 [![NASA Space Apps Challenge 2026](https://img.shields.io/badge/NASA%20Space%20Apps-2026-blue.svg)](https://www.spaceappschallenge.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -58,7 +58,7 @@ Real-time Multichannel Sound, tightly synchronized to video.currentTime
 
 ## 🛰️ Supported NASA Visualization Presets
 
-Earth Jukebox includes calibrated presets for NASA's challenge catalog:
+OptiTone includes calibrated presets for NASA's challenge catalog:
 
 1. **GEDI Forest Canopy Height (SVS 4950)** — LiDAR canopy measurements (0–60 m) mapped to fundamental pitch center.
 2. **Change in Night Lights 2012–2023 (SVS 5313)** — Decadal urban electrification dynamics driving sonic density and volume.
@@ -97,7 +97,7 @@ npm run build
 npm run package
 ```
 
-Release archive will be generated at `releases/earth-jukebox-v1.0.0.zip`.
+Release archive will be generated at `releases/optitone-v1.0.0.zip`.
 
 ---
 
@@ -108,15 +108,7 @@ Release archive will be generated at `releases/earth-jukebox-v1.0.0.zip`.
 3. Click **Load unpacked** in the top left corner.
 4. Select the `extension/dist` folder inside this repository.
 5. Navigate to any NASA SVS or EIC page (e.g. [GEDI Canopy Height](https://svs.gsfc.nasa.gov/4950/)).
-6. Click the **Earth Jukebox** extension icon in your toolbar (or press <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd>) and click **Start Sonifying**!
-
----
-
-## 🎛️ Standalone Fallback Demo Studio (Tier 2)
-
-For judges or reviewers unable to install unpacked Chrome extensions, we provide a complete standalone fallback application in `demo-page/`:
-- **Run locally:** `npm run build:demo` and open `demo-page/dist/index.html` in any modern web browser.
-- Includes interactive synthetic NASA simulations (GEDI, Night Lights, Lightning, Ocean Currents), custom MP4 upload, external NASA URL loader, live 4×8 spatial heatmap, real-time audio visualizer oscilloscope, and raw contract JSON payload inspector.
+6. Click the **OptiTone** extension icon in your toolbar (or press <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd>) to enable real-time sonification!
 
 ---
 
