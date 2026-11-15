@@ -161,16 +161,27 @@ export function mapPixelToLegendValue(
  */
 export function calculateAverageLegendValue(
   data: Uint8ClampedArray,
-  lut: PreparedLegendLUT | null
+  lut: PreparedLegendLUT | null,
+  options: { ignoreDark?: number } = {}
 ): number | null {
   if (!lut) return null;
 
   const len = data.length;
+  const threshold = options.ignoreDark ?? 0;
   let sumNorm = 0;
   let count = 0;
 
   for (let i = 0; i < len; i += 4) {
-    const res = mapPixelToLegendValue(data[i], data[i + 1], data[i + 2], lut);
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+
+    if (threshold > 0) {
+      const luma = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      if (luma < threshold) continue; // Exclude empty dark/space background
+    }
+
+    const res = mapPixelToLegendValue(r, g, b, lut);
     if (res !== null) {
       sumNorm += res.normalizedValue;
       count++;

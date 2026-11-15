@@ -21,7 +21,7 @@ class EarthJukeboxController {
   private emitter = new EjbEmitter();
   private mediaFinder: MediaFinder;
   private capturePipeline: FrameCapturePipeline | null = null;
-  private audioEngine = new EarthJukeboxAudioEngine();
+  private audioEngine = new EarthJukeboxAudioEngine({ mode: 'scientific' });
 
   // Analysis state (runs directly in-thread on 32x32 buffer, taking <0.08ms per tick with 0 CSP issues)
   private directPreviousFrame: Uint8ClampedArray | null = null;
@@ -54,17 +54,34 @@ class EarthJukeboxController {
         chrome.storage.local.set({ extensionEnabled: true });
       }
 
-      if (typeof items.masterVolume === 'number') {
-        this.audioEngine.setMasterVolume(items.masterVolume);
-      }
       if (items.activeMode) {
-        this.audioEngine.setMode(items.activeMode);
+        this.audioEngine.setMode(items.activeMode as SonificationMode);
       }
+      // Always sonify at max volume (100% / 1.0)
+      this.audioEngine.setMasterVolume(1.0);
+      chrome.storage.local.set({ masterVolume: 1.0 });
 
-      // If a video is already playing right now on page load, start sonification immediately
+      // If a video is already actively playing right now on page load, start sonification immediately
       const media = this.mediaFinder.getActiveMedia();
-      if (this.extensionEnabled && media instanceof HTMLVideoElement && !media.paused && !media.ended) {
+      if (
+        this.extensionEnabled &&
+        media instanceof HTMLVideoElement &&
+        !media.paused &&
+        !media.ended &&
+        media.readyState >= 2 &&
+        media.currentTime > 0
+      ) {
         this.startAutoSonification(media);
+      }
+    });
+
+    // React immediately to storage changes from popup toggle
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === 'local' && changes.extensionEnabled) {
+        const newEnabled = Boolean(changes.extensionEnabled.newValue);
+        if (newEnabled !== this.extensionEnabled) {
+          this.setExtensionEnabled(newEnabled);
+        }
       }
     });
 
@@ -146,12 +163,12 @@ class EarthJukeboxController {
   }
 
   private setupUserGestureUnlock(): void {
-    // Unlocks and prepares the AudioContext on any user interaction (pointerdown, click, or keyboard)
-    // so sound starts with absolute ZERO latency as soon as the video plays
     const unlockAudio = () => {
-      if (this.extensionEnabled && this.audioEngine) {
+      if (this.audioEngine) {
         this.audioEngine.start().then(() => {
-          this.audioEngine.resume();
+          if (!this.isSonifying) {
+            this.audioEngine.pause();
+          }
         }).catch(() => {});
       }
     };
@@ -161,7 +178,7 @@ class EarthJukeboxController {
   }
 
   private setupListeners(): void {
-    // 1. Control events from Pranav's synth or external tools
+    // 1. Control events
     this.emitter.onControl((control: EjbControlPayload) => {
       if (this.capturePipeline) {
         this.capturePipeline.updateConfig({
@@ -197,8 +214,9 @@ class EarthJukeboxController {
           return true;
         }
 
-        case 'TOGGLE_SONIFICATION': {
-          const enabled = this.toggleExtensionEnabled();
+        case 'SET_ENABLED': {
+          const target = Boolean(message.enabled);
+          const enabled = this.setExtensionEnabled(target);
           const media = this.mediaFinder.getActiveMedia();
           const isMediaPlaying = media instanceof HTMLVideoElement ? !media.paused && !media.ended : false;
           sendResponse({
@@ -209,35 +227,18 @@ class EarthJukeboxController {
           return true;
         }
 
-        case 'SET_MODE': {
-          if (message.mode) {
-            this.audioEngine.setMode(message.mode as SonificationMode);
-            chrome.storage.local.set({ activeMode: message.mode });
-            sendResponse({ success: true, mode: message.mode });
-          }
-          return true;
-        }
-
-        case 'SET_VOLUME': {
-          if (typeof message.volume === 'number') {
-            this.audioEngine.setMasterVolume(message.volume);
-            chrome.storage.local.set({ masterVolume: message.volume });
-            sendResponse({ success: true, volume: message.volume });
-          }
-          return true;
-        }
-
-        case 'SELECT_PRESET': {
-          const preset = PRESETS[message.presetId];
-          if (preset) {
-            this.manualPresetOverride = true;
-            this.applyPreset(preset);
-            const media = this.mediaFinder.getActiveMedia();
-            if (media) {
-              this.emitReadyEvent(media);
-            }
-          }
-          sendResponse({ success: true, activePreset: this.activePreset });
+        case 'TOGGLE_SONIFICATION': {
+          const target = typeof message.enabled === 'boolean'
+            ? message.enabled
+            : !this.extensionEnabled;
+          const enabled = this.setExtensionEnabled(target);
+          const media = this.mediaFinder.getActiveMedia();
+          const isMediaPlaying = media instanceof HTMLVideoElement ? !media.paused && !media.ended : false;
+          sendResponse({
+            extensionEnabled: enabled,
+            isActive: this.isSonifying,
+            isMediaPlaying
+          });
           return true;
         }
       }
@@ -245,8 +246,8 @@ class EarthJukeboxController {
     });
   }
 
-  private toggleExtensionEnabled(): boolean {
-    this.extensionEnabled = !this.extensionEnabled;
+  private setExtensionEnabled(enabled: boolean): boolean {
+    this.extensionEnabled = enabled;
     chrome.storage.local.set({ extensionEnabled: this.extensionEnabled });
 
     const media = this.mediaFinder.getActiveMedia();
@@ -256,6 +257,7 @@ class EarthJukeboxController {
       if (isPlaying && media) {
         this.startAutoSonification(media);
       } else {
+        this.pauseSonification();
         this.updateBadge(false);
       }
     } else {
@@ -267,6 +269,17 @@ class EarthJukeboxController {
   }
 
   private async startAutoSonification(media: TrackedMedia): Promise<void> {
+    if (!this.extensionEnabled) {
+      this.pauseSonification();
+      return;
+    }
+
+    // Strictly verify the video is actually playing before starting any audio!
+    if (media instanceof HTMLVideoElement && (media.paused || media.ended)) {
+      this.pauseSonification();
+      return;
+    }
+
     if (!this.manualPresetOverride) {
       this.detectPresetForMedia(media);
     }
@@ -281,19 +294,21 @@ class EarthJukeboxController {
   }
 
   private pauseSonification(): void {
-    if (this.isSonifying) {
-      this.audioEngine.pause();
-      if (this.capturePipeline) {
-        this.capturePipeline.stop();
-      }
-      this.isSonifying = false;
-      this.updateBadge(false);
+    this.isSonifying = false;
+    this.audioEngine.stop();
+    this.audioEngine.pause();
+    if (this.capturePipeline) {
+      this.capturePipeline.stop();
+      this.capturePipeline = null;
     }
+    this.updateBadge(false);
   }
 
   private updateBadge(isActive: boolean): void {
     try {
-      chrome.runtime.sendMessage({ type: 'UPDATE_BADGE', isActive }).catch(() => {});
+      chrome.runtime.sendMessage({ type: 'UPDATE_BADGE', isActive }, () => {
+        void chrome.runtime.lastError;
+      });
     } catch {
       // Ignored
     }
@@ -304,15 +319,22 @@ class EarthJukeboxController {
     this.detectPresetForMedia(media);
     this.emitReadyEvent(media);
 
-    const isPlaying = media instanceof HTMLVideoElement ? !media.paused && !media.ended : false;
+    const isPlaying =
+      media instanceof HTMLVideoElement
+        ? !media.paused && !media.ended && media.readyState >= 2 && media.currentTime > 0
+        : false;
     if (this.extensionEnabled && isPlaying) {
       this.startAutoSonification(media);
+    } else {
+      this.pauseSonification();
     }
   }
 
   private handleMediaLost(): void {
     this.pauseSonification();
-    this.emitter.emitState({ state: 'lost-media', t: this.currentT });
+    if (this.extensionEnabled && this.isSonifying) {
+      this.emitter.emitState({ state: 'lost-media', t: this.currentT });
+    }
   }
 
   private handleStateChange(state: 'playing' | 'paused' | 'seeked' | 'ended', time: number): void {
@@ -327,12 +349,16 @@ class EarthJukeboxController {
         if (media) {
           this.startAutoSonification(media);
         }
+      } else {
+        this.pauseSonification();
       }
     } else if (state === 'paused' || state === 'ended') {
       this.pauseSonification();
     }
 
-    this.emitter.emitState({ state, t: time });
+    if (this.extensionEnabled && this.isSonifying) {
+      this.emitter.emitState({ state, t: time });
+    }
   }
 
   private emitReadyEvent(media: TrackedMedia): void {
@@ -372,6 +398,10 @@ class EarthJukeboxController {
   }
 
   private handleFrameCaptured(frame: CapturedFrame): void {
+    if (!this.extensionEnabled || !this.isSonifying) {
+      return;
+    }
+
     this.currentT = frame.t;
     this.currentFrameIndex = frame.frameIndex;
 
@@ -383,87 +413,95 @@ class EarthJukeboxController {
   }
 
   private runDirectAnalysis(frame: CapturedFrame, seeked: boolean): void {
-    const currentData = new Uint8ClampedArray(frame.buffer);
-    const preset = this.activePreset;
-    const ignoreDark = preset?.ignoreDark ?? 0.05;
-
-    if (!this.directLut && preset?.legend) {
-      this.directLut = prepareLegendLUT(preset.legend);
+    if (!this.extensionEnabled || !this.isSonifying) {
+      return;
     }
 
-    const brightness = calculateAverageLuminance(currentData, { ignoreDark });
-    const colorMetrics = extractColorMetrics(currentData, { ignoreDark });
-    let dataValue = calculateAverageLegendValue(currentData, this.directLut);
-
-    // If unlisted or general visualization, dynamically map live brightness, saturation, and hue to data value
-    if (dataValue === null && (!preset.legend || preset.id === 'general-earth')) {
-      dataValue = round3(clamp(brightness * 0.65 + colorMetrics.saturation * 0.35));
-    }
-
-    const regions = calculateRegionGrid(
-      currentData,
-      { rows: preset?.grid?.[0] ?? 4, cols: preset?.grid?.[1] ?? 8, width: frame.width, height: frame.height, ignoreDark },
-      this.directLut
-    );
-
-    const motionResult = calculateMotionAndEvents(
-      currentData,
-      seeked ? null : this.directPreviousFrame,
-      frame.width,
-      frame.height,
-      this.directBaselines,
-      {
-        detectEvents: preset?.events?.detect ?? null,
-        eventThreshold: preset?.events?.threshold ?? 0.20,
-        baselineAlpha: preset?.events?.baselineAlpha ?? 0.05
-      }
-    );
-
-    const profile = calculateSpatialProfiles(currentData, frame.width, frame.height, 32);
-
-    if (!this.directPreviousFrame || this.directPreviousFrame.length !== currentData.length) {
-      this.directPreviousFrame = new Uint8ClampedArray(currentData);
-    } else {
-      this.directPreviousFrame.set(currentData);
-    }
-
-    const payload: EjbFramePayload = {
-      v: 1,
-      t: round3(frame.t),
-      frameIndex: frame.frameIndex,
-      vizId: preset?.id ?? 'custom',
-      metrics: {
-        brightness,
-        dominantColor: colorMetrics.dominantColor,
-        hue: colorMetrics.hue,
-        saturation: colorMetrics.saturation,
-        dataValue,
-        motion: seeked ? 0 : motionResult.motion,
-        regions
-      },
-      flags: {
-        seeked,
-        scene_cut: motionResult.sceneCut
-      },
-      events: motionResult.events.length > 0 ? motionResult.events : undefined,
-      profile
-    };
-
-    this.lastPayload = payload;
-
-    // 1. Dispatch custom DOM event on window
-    this.emitter.emitFrame(payload);
-
-    // 2. Direct feed to Pranav's Web Audio Engine (100% Real-time Synthesis)
-    if (this.isSonifying) {
-      this.audioEngine.processFrame(payload);
-    }
-
-    // 3. Broadcast to popup monitor
     try {
-      chrome.runtime.sendMessage({ type: 'POPUP_METRIC_UPDATE', payload }).catch(() => {});
-    } catch {
-      // Popup might be closed
+      const currentData = new Uint8ClampedArray(frame.buffer);
+      const preset = this.activePreset;
+      const ignoreDark = preset?.ignoreDark ?? 0.05;
+
+      if (!this.directLut && preset?.legend) {
+        this.directLut = prepareLegendLUT(preset.legend);
+      }
+
+      const brightness = calculateAverageLuminance(currentData, { ignoreDark });
+      const colorMetrics = extractColorMetrics(currentData, { ignoreDark });
+      let dataValue = calculateAverageLegendValue(currentData, this.directLut, { ignoreDark });
+
+      // Graceful adaptive mapping ensures dataValue is ALWAYS calibrated and reactive to footage
+      if (dataValue === null) {
+        dataValue = round3(clamp(brightness * 0.65 + colorMetrics.saturation * 0.35));
+      }
+
+      const regions = calculateRegionGrid(
+        currentData,
+        { rows: preset?.grid?.[0] ?? 4, cols: preset?.grid?.[1] ?? 8, width: frame.width, height: frame.height, ignoreDark },
+        this.directLut
+      );
+
+      const motionResult = calculateMotionAndEvents(
+        currentData,
+        seeked ? null : this.directPreviousFrame,
+        frame.width,
+        frame.height,
+        this.directBaselines,
+        {
+          detectEvents: preset?.events?.detect ?? null,
+          eventThreshold: preset?.events?.threshold ?? 0.20,
+          baselineAlpha: preset?.events?.baselineAlpha ?? 0.05
+        }
+      );
+
+      const profile = calculateSpatialProfiles(currentData, frame.width, frame.height, 32);
+
+      if (!this.directPreviousFrame || this.directPreviousFrame.length !== currentData.length) {
+        this.directPreviousFrame = new Uint8ClampedArray(currentData);
+      } else {
+        this.directPreviousFrame.set(currentData);
+      }
+
+      const payload: EjbFramePayload = {
+        v: 1,
+        t: round3(frame.t),
+        frameIndex: frame.frameIndex,
+        vizId: preset?.id ?? 'custom',
+        metrics: {
+          brightness,
+          dominantColor: colorMetrics.dominantColor,
+          hue: colorMetrics.hue,
+          saturation: colorMetrics.saturation,
+          dataValue,
+          motion: seeked ? 0 : motionResult.motion,
+          regions
+        },
+        flags: {
+          seeked,
+          scene_cut: motionResult.sceneCut
+        },
+        events: motionResult.events.length > 0 ? motionResult.events : undefined,
+        profile
+      };
+
+      this.lastPayload = payload;
+
+      // 1. Dispatch custom DOM event on window ONLY when actively sonifying
+      if (this.extensionEnabled && this.isSonifying) {
+        this.emitter.emitFrame(payload);
+        this.audioEngine.processFrame(payload);
+      }
+
+      // 3. Broadcast to popup monitor
+      try {
+        chrome.runtime.sendMessage({ type: 'POPUP_METRIC_UPDATE', payload }, () => {
+          void chrome.runtime.lastError;
+        });
+      } catch {
+        // Popup might be closed
+      }
+    } catch (err) {
+      console.error('[EJB] Direct analysis error:', err);
     }
   }
 
@@ -478,6 +516,8 @@ class EarthJukeboxController {
       chrome.runtime.sendMessage({
         type: 'CANVAS_TAINTED_DETECTED',
         url: window.location.href
+      }, () => {
+        void chrome.runtime.lastError;
       });
     }
   }

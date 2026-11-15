@@ -30,8 +30,10 @@ export class MediaFinder {
 
   private handleGlobalPause = (e: Event): void => {
     const target = e.target;
-    if (target instanceof HTMLVideoElement && this.activeMedia === target) {
-      this.callbacks.onStateChange('paused', target.currentTime);
+    if (target instanceof HTMLVideoElement) {
+      if (!this.activeMedia || this.activeMedia === target) {
+        this.callbacks.onStateChange('paused', target.currentTime);
+      }
     }
   };
 
@@ -142,9 +144,11 @@ export class MediaFinder {
       this.addListener(media, 'seeked', onSeeked);
       this.addListener(media, 'ended', onEnded);
 
-      // If video is already actively playing when attached, trigger playing callback immediately
-      if (!media.paused && !media.ended) {
+      // If video is actively playing when attached, trigger playing; otherwise ensure paused
+      if (!media.paused && !media.ended && media.readyState >= 2 && media.currentTime > 0) {
         this.callbacks.onStateChange('playing', media.currentTime);
+      } else {
+        this.callbacks.onStateChange('paused', media.currentTime);
       }
     }
   }

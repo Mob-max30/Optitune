@@ -12,7 +12,11 @@
   "host_permissions": [
     "https://*.earth.gov/*",
     "https://earth.gov/*",
-    "https://svs.gsfc.nasa.gov/*"
+    "https://*.nasa.gov/*",
+    "https://nasa.gov/*",
+    "https://svs.gsfc.nasa.gov/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
   ],
   "action": {
     "default_popup": "popup.html",
@@ -27,7 +31,11 @@
       "matches": [
         "https://*.earth.gov/*",
         "https://earth.gov/*",
-        "https://svs.gsfc.nasa.gov/*"
+        "https://*.nasa.gov/*",
+        "https://nasa.gov/*",
+        "https://svs.gsfc.nasa.gov/*",
+        "http://localhost/*",
+        "http://127.0.0.1/*"
       ],
       "js": ["content.js"],
       "run_at": "document_idle",
@@ -52,7 +60,6 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "analyzer.worker.js",
         "icons/*"
       ],
       "matches": [

@@ -11,7 +11,6 @@ export * from './smoother';
 export * from './spatial';
 export * from './profiles';
 export { LeadVoice } from './synths/base-voice';
-export { PadVoice } from './synths/pad-voice';
+export { FeaturePulseVoice } from './synths/pulse-voice';
 export { PercussionVoice } from './synths/percussion';
 export { TextureNoiseVoice } from './synths/noise-voice';
-export { ScannerVoice } from './synths/scanner-voice';

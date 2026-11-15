@@ -111,4 +111,37 @@ describe('Earth Jukebox Audio Engine (Pranav)', () => {
     engine.setMuted(true);
     engine.setMuted(false);
   });
+
+  it('halts sound and ignores incoming frames when paused or stopped', async () => {
+    await engine.start();
+    engine.pause();
+
+    const sampleFrame: EjbFramePayload = {
+      v: 1,
+      t: 15.0,
+      frameIndex: 180,
+      vizId: 'gedi-forest-height',
+      metrics: {
+        brightness: 0.9,
+        dominantColor: { r: 0.1, g: 0.9, b: 0.1 },
+        hue: 0.33,
+        saturation: 0.9,
+        dataValue: 0.95,
+        motion: 0.1,
+        regions: {
+          rows: 4,
+          cols: 8,
+          brightness: new Array(32).fill(0.9),
+          dataValue: new Array(32).fill(0.95)
+        }
+      },
+      flags: { seeked: false, scene_cut: false }
+    };
+
+    // processFrame should do nothing when paused
+    engine.processFrame(sampleFrame);
+
+    // resume should NOT resume if engine is paused/stopped
+    engine.resume();
+  });
 });

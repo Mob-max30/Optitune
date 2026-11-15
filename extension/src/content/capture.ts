@@ -25,6 +25,8 @@ export class FrameCapturePipeline {
 
   private isRunning = false;
   private frameCallbackId: number | null = null;
+  private videoCallbackId: number | null = null;
+  private currentMedia: TrackedMedia | null = null;
   private lastTickTime = 0;
   private frameCount = 0;
 
@@ -73,6 +75,7 @@ export class FrameCapturePipeline {
   start(media: TrackedMedia): void {
     if (this.isRunning) return;
     this.isRunning = true;
+    this.currentMedia = media;
     this.scheduleNext(media);
   }
 
@@ -82,13 +85,24 @@ export class FrameCapturePipeline {
       cancelAnimationFrame(this.frameCallbackId);
       this.frameCallbackId = null;
     }
+    if (
+      this.videoCallbackId !== null &&
+      this.currentMedia instanceof HTMLVideoElement &&
+      'cancelVideoFrameCallback' in this.currentMedia
+    ) {
+      try {
+        (this.currentMedia as any).cancelVideoFrameCallback(this.videoCallbackId);
+      } catch {}
+      this.videoCallbackId = null;
+    }
+    this.currentMedia = null;
   }
 
   private scheduleNext(media: TrackedMedia): void {
     if (!this.isRunning) return;
 
     if (media instanceof HTMLVideoElement && 'requestVideoFrameCallback' in media) {
-      (media as any).requestVideoFrameCallback((now: number, metadata: { mediaTime?: number }) => {
+      this.videoCallbackId = (media as any).requestVideoFrameCallback((now: number, metadata: { mediaTime?: number }) => {
         if (!this.isRunning) return;
         this.processFrame(media, now, metadata.mediaTime ?? media.currentTime);
         this.scheduleNext(media);

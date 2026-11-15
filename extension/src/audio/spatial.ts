@@ -119,3 +119,68 @@ export function calculateSpatialDistribution(
     rowEnergies
   };
 }
+
+export interface ActiveHotspot {
+  col: number;
+  row: number;
+  /** Stereo pan for the hotspot: -1.0 (West/Left) to +1.0 (East/Right) */
+  pan: number;
+  /** Vertical latitude: -1.0 (South) to +1.0 (North) */
+  latitudeBias: number;
+  /** Value of the peak feature [0.0, 1.0] */
+  value: number;
+  /** Contrast prominence above background mean */
+  contrast: number;
+}
+
+/**
+ * Finds the most prominent localized feature / active hotspot in the 4x8 grid.
+ * This allows audio to track the specific moving subject (e.g. cloud front,
+ * canopy mass, hot current, continent) rather than a flat frame-wide average.
+ */
+export function findActiveHotspot(
+  regions: RegionGridMetrics,
+  useDataValue = false
+): ActiveHotspot {
+  const rows = regions.rows || 4;
+  const cols = regions.cols || 8;
+  const values = useDataValue ? regions.dataValue : regions.brightness;
+
+  let maxVal = -1;
+  let maxR = Math.floor(rows / 2);
+  let maxC = Math.floor(cols / 2);
+  let sum = 0;
+  let count = 0;
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const idx = r * cols + c;
+      const rawVal = values[idx];
+      const val = (rawVal !== null && rawVal !== undefined) ? rawVal : 0;
+      sum += val;
+      count++;
+      if (val > maxVal) {
+        maxVal = val;
+        maxR = r;
+        maxC = c;
+      }
+    }
+  }
+
+  const meanVal = count > 0 ? sum / count : 0;
+  const maxColOffset = Math.max(1, (cols - 1) / 2);
+  const maxRowOffset = Math.max(1, (rows - 1) / 2);
+
+  const pan = Math.max(-1.0, Math.min(1.0, (maxC - maxColOffset) / maxColOffset));
+  const latitudeBias = Math.max(-1.0, Math.min(1.0, (maxRowOffset - maxR) / maxRowOffset));
+  const contrast = Math.max(0.0, maxVal - meanVal);
+
+  return {
+    col: maxC,
+    row: maxR,
+    pan,
+    latitudeBias,
+    value: Math.max(0.0, Math.min(1.0, maxVal >= 0 ? maxVal : meanVal)),
+    contrast
+  };
+}

@@ -14,14 +14,12 @@ export default defineConfig({
         popup: resolve(__dirname, 'src/popup/popup.html'),
         offscreen: resolve(__dirname, 'src/offscreen/offscreen.html'),
         content: resolve(__dirname, 'src/content/index.ts'),
-        'service-worker': resolve(__dirname, 'src/background/service-worker.ts'),
-        'analyzer.worker': resolve(__dirname, 'src/worker/analyzer.worker.ts')
+        'service-worker': resolve(__dirname, 'src/background/service-worker.ts')
       },
       output: {
         entryFileNames: (chunkInfo) => {
           if (chunkInfo.name === 'content') return 'content.js';
           if (chunkInfo.name === 'service-worker') return 'service-worker.js';
-          if (chunkInfo.name === 'analyzer.worker') return 'analyzer.worker.js';
           return 'assets/[name]-[hash].js';
         },
         chunkFileNames: 'assets/[name]-[hash].js',

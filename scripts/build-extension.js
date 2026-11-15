@@ -46,23 +46,7 @@ async function buildAll() {
     }
   });
 
-  // 3. Build Analyzer Web Worker (ES module)
-  console.log('[Build] Compiling analyzer.worker.js (ES module)...');
-  await build({
-    configFile: false,
-    build: {
-      emptyOutDir: false,
-      outDir: distDir,
-      target: 'es2022',
-      lib: {
-        entry: resolve(extDir, 'src/worker/analyzer.worker.ts'),
-        formats: ['es'],
-        fileName: () => 'analyzer.worker.js'
-      }
-    }
-  });
-
-  // 4. Build Popup and Offscreen HTML pages
+  // 3. Build Popup and Offscreen HTML pages
   console.log('[Build] Compiling popup and offscreen HTML...');
   await build({
     configFile: false,

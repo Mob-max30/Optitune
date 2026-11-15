@@ -26,9 +26,9 @@ export class LeadVoice {
     this.gainNode = ctx.createGain();
 
     // Default configuration
-    this.osc1.type = 'triangle';
-    this.osc2.type = 'sine';
-    this.osc2.detune.value = 7; // subtle chorus spread (+7 cents)
+    this.osc1.type = 'sine';
+    this.osc2.type = 'triangle';
+    this.osc2.detune.value = 0; // Pure harmonic tracking (NO detuning beating vibrations)
 
     this.filter.type = 'lowpass';
     this.filter.frequency.setValueAtTime(1200, ctx.currentTime);
