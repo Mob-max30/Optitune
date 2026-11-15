@@ -1,55 +1,169 @@
-/**
- * Earth Jukebox (EJB) — Popup Launcher Controller
- * Specification: Amendment B, Section 6a & Gate B5
- *
- * Lightweight launcher (~360px) without raw metric leakage.
- * Coordinates play/pause, mode selection, on-page panel activation,
- * and link to the Listening Room.
- */
-
-import { createUiViewModel, type UiMode } from '../ui/view-model';
+import type { PresetConfig, EjbFramePayload } from '../contract/types';
+import type { MappingProfile } from '../semantic/types';
+import type { AuditorySceneProfile } from '../sasc/scene-profile';
+import { generateStructuredLegendHtml } from '../accessibility/auditory-legend';
+import { generateSascStructuredLegendHtml } from '../sasc/sasc-legend';
+import { PRESETS } from '../presets';
 
 let activeTabId: number | null = null;
 let pollTimer: number | null = null;
+let currentPreset: PresetConfig | null = null;
+let currentProfileId: string | null = null;
 
-const statusBadge = document.getElementById('statusBadge') as HTMLElement;
-const sourceTitle = document.getElementById('sourceTitle') as HTMLElement;
-const provenanceChip = document.getElementById('provenanceChip') as HTMLElement;
-const chipIcon = document.getElementById('chipIcon') as HTMLElement;
-const chipText = document.getElementById('chipText') as HTMLElement;
-const emptyState = document.getElementById('emptyState') as HTMLElement;
-const mainControls = document.getElementById('mainControls') as HTMLElement;
 const toggleBtn = document.getElementById('toggleBtn') as HTMLButtonElement;
-const toggleIcon = document.getElementById('toggleIcon') as HTMLElement;
-const toggleBtnText = document.getElementById('toggleBtnText') as HTMLElement;
-const modeGroup = document.querySelector('.ejb-mode-group') as HTMLElement;
-const modeDesc = document.getElementById('modeDesc') as HTMLElement;
-const openPanelBtn = document.getElementById('openPanelBtn') as HTMLButtonElement;
-const openDemoBtn = document.getElementById('openDemoBtn') as HTMLButtonElement;
-const openDemoBtnEmpty = document.getElementById('openDemoBtnEmpty') as HTMLButtonElement;
-const srAnnouncer = document.getElementById('srAnnouncer') as HTMLElement;
+const toggleBtnText = document.getElementById('toggleBtnText') as HTMLSpanElement;
+const statusBadge = document.getElementById('statusBadge') as HTMLSpanElement;
+const srAnnouncer = document.getElementById('srAnnouncer') as HTMLDivElement;
+const presetSelect = document.getElementById('presetSelect') as HTMLSelectElement;
+const presetDescription = document.getElementById('presetDescription') as HTMLParagraphElement;
+const soundLegendText = document.getElementById('soundLegendText') as HTMLDivElement;
+const modeSelect = document.getElementById('modeSelect') as HTMLSelectElement;
+const volumeRange = document.getElementById('volumeRange') as HTMLInputElement;
+
+const raagaNameDisplay = document.getElementById('raagaNameDisplay') as HTMLSpanElement | null;
+const taalaNameDisplay = document.getElementById('taalaNameDisplay') as HTMLSpanElement | null;
+const swaraDisplay = document.getElementById('swaraDisplay') as HTMLElement | null;
+
+const metricLuma = document.getElementById('metricLuma') as HTMLSpanElement;
+const meterLumaBar = document.getElementById('meterLumaBar') as HTMLDivElement;
+const metricDataValue = document.getElementById('metricDataValue') as HTMLSpanElement;
+const metricUnit = document.getElementById('metricUnit') as HTMLSpanElement;
+const metricHue = document.getElementById('metricHue') as HTMLSpanElement;
+const colorSwatch = document.getElementById('colorSwatch') as HTMLDivElement;
+const metricMotion = document.getElementById('metricMotion') as HTMLSpanElement;
+const meterMotionBar = document.getElementById('meterMotionBar') as HTMLDivElement;
+const videoTime = document.getElementById('videoTime') as HTMLElement;
+const frameIdx = document.getElementById('frameIdx') as HTMLElement;
 
 async function initPopup(): Promise<void> {
-  setupButtons();
+  populatePresets();
 
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab || !tab.id) {
-    showEmptyState('No active tab');
+    setStatus('inactive', 'No Tab');
+    announce('No active NASA tab found.');
     return;
   }
   activeTabId = tab.id;
 
+  setupEvents();
   fetchStatus();
-  pollTimer = window.setInterval(fetchStatus, 500);
+
+  // Poll status while popup is open to reflect live metrics
+  pollTimer = window.setInterval(fetchStatus, 300);
 }
 
-function showEmptyState(reason: string): void {
-  statusBadge.textContent = reason;
-  statusBadge.classList.remove('active');
-  emptyState.style.display = 'block';
-  mainControls.style.display = 'none';
-  sourceTitle.textContent = 'No NASA visualization detected';
-  provenanceChip.style.display = 'none';
+function populatePresets(): void {
+  presetSelect.innerHTML = '';
+  for (const [key, preset] of Object.entries(PRESETS)) {
+    const opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = preset.name;
+    presetSelect.appendChild(opt);
+  }
+}
+
+function announce(msg: string): void {
+  srAnnouncer.textContent = msg;
+}
+
+function setStatus(state: 'active' | 'inactive' | 'searching', text: string): void {
+  statusBadge.className = 'badge';
+  if (state === 'active') {
+    statusBadge.classList.add('badge-active');
+  } else if (state === 'searching') {
+    statusBadge.classList.add('badge-searching');
+  } else {
+    statusBadge.classList.add('badge-inactive');
+  }
+  statusBadge.textContent = text;
+}
+
+function updateUiState(
+  extensionEnabled: boolean,
+  isActive: boolean,
+  hasMedia: boolean,
+  isMediaPlaying: boolean,
+  preset: PresetConfig | null
+): void {
+  if (!extensionEnabled) {
+    toggleBtn.classList.remove('btn-active');
+    toggleBtn.classList.add('btn-primary');
+    toggleBtn.setAttribute('aria-pressed', 'false');
+    toggleBtnText.textContent = 'Enable Auto-Sonify';
+    setStatus('inactive', 'Disabled');
+  } else if (isActive && isMediaPlaying) {
+    toggleBtn.classList.remove('btn-primary');
+    toggleBtn.classList.add('btn-active');
+    toggleBtn.setAttribute('aria-pressed', 'true');
+    toggleBtnText.textContent = 'Sonifying (Click to Pause)';
+    setStatus('active', 'Live');
+  } else {
+    toggleBtn.classList.remove('btn-primary');
+    toggleBtn.classList.add('btn-active');
+    toggleBtn.setAttribute('aria-pressed', 'true');
+    toggleBtnText.textContent = hasMedia ? 'Auto-Ready (Plays with Video)' : 'Waiting for Video...';
+    setStatus(hasMedia ? 'active' : 'searching', hasMedia ? 'Auto-Ready' : 'Searching');
+  }
+
+  if (preset) {
+    currentPreset = preset;
+    presetSelect.value = preset.id;
+    presetDescription.textContent = preset.description;
+    if (!currentProfileId && preset.soundHint) {
+      soundLegendText.innerHTML = preset.soundHint;
+    }
+    if (preset.legend?.unit) {
+      metricUnit.textContent = preset.legend.unit;
+    } else {
+      metricUnit.textContent = 'approximate';
+    }
+  }
+}
+
+function renderSascScene(scene: AuditorySceneProfile | null | undefined): void {
+  if (!scene || scene.isSilent || scene.activeStreams.length === 0) return;
+  if (currentProfileId === scene.sceneId) return;
+  currentProfileId = scene.sceneId;
+  soundLegendText.innerHTML = generateSascStructuredLegendHtml(scene);
+}
+
+function renderMappingProfile(profile: MappingProfile | null | undefined): void {
+  if (!profile || profile.isSilent || profile.activeMappings.length === 0) return;
+  if (currentProfileId === profile.profileId) return;
+  currentProfileId = profile.profileId;
+  soundLegendText.innerHTML = generateStructuredLegendHtml(profile);
+}
+
+function renderMetrics(p: EjbFramePayload): void {
+  if (!p || !p.metrics) return;
+
+  metricLuma.textContent = p.metrics.brightness.toFixed(2);
+  meterLumaBar.style.width = `${Math.round(p.metrics.brightness * 100)}%`;
+
+  if (p.metrics.dataValue !== null && p.metrics.dataValue !== undefined) {
+    const preset = (p.vizId && PRESETS[p.vizId]) || currentPreset;
+    if (preset?.legend && preset.legend.min !== undefined && preset.legend.max !== undefined) {
+      const realVal = preset.legend.min + p.metrics.dataValue * (preset.legend.max - preset.legend.min);
+      metricDataValue.textContent = realVal.toFixed(1);
+    } else {
+      metricDataValue.textContent = p.metrics.dataValue.toFixed(2);
+    }
+  } else {
+    metricDataValue.textContent = `${(p.metrics.brightness * 100).toFixed(0)}% (approx)`;
+  }
+
+  metricHue.textContent = `Hue: ${Math.round(p.metrics.hue * 360)}°`;
+  const dc = p.metrics.dominantColor;
+  if (dc) {
+    colorSwatch.style.backgroundColor = `rgb(${Math.round(dc.r * 255)}, ${Math.round(dc.g * 255)}, ${Math.round(dc.b * 255)})`;
+  }
+
+  metricMotion.textContent = p.metrics.motion.toFixed(2);
+  meterMotionBar.style.width = `${Math.round(p.metrics.motion * 100)}%`;
+
+  videoTime.textContent = `${p.t.toFixed(2)}s`;
+  frameIdx.textContent = String(p.frameIndex);
 }
 
 function fetchStatus(): void {
@@ -57,116 +171,117 @@ function fetchStatus(): void {
 
   chrome.tabs.sendMessage(activeTabId, { type: 'GET_STATUS' }, (res) => {
     if (chrome.runtime.lastError || !res) {
-      showEmptyState('Inactive');
+      // Content script not loaded or not on NASA page
+      setStatus('inactive', 'EIC / SVS only');
+      presetDescription.textContent = 'Open an Earth Information Center (earth.gov) or SVS (svs.gsfc.nasa.gov) visualization page.';
       return;
     }
 
-    if (!res.hasMedia && !res.isActive) {
-      showEmptyState('No video');
-      return;
+    updateUiState(
+      res.extensionEnabled ?? res.isActive,
+      res.isActive,
+      res.hasMedia,
+      res.isMediaPlaying ?? res.isActive,
+      res.activePreset
+    );
+
+    if (res.sascScene) {
+      renderSascScene(res.sascScene);
+    } else if (res.mappingProfile) {
+      renderMappingProfile(res.mappingProfile);
     }
 
-    emptyState.style.display = 'none';
-    mainControls.style.display = 'flex';
-    provenanceChip.style.display = 'inline-flex';
-
-    // Map into UiViewModel
-    const vm = createUiViewModel({
-      payload: res.lastPayload,
-      preset: res.activePreset,
-      mappingProfile: res.mappingProfile,
-      telemetry: res.telemetry,
-      engineState: {
-        isSonifying: res.isActive,
-        mode: res.mode
-      },
-      mediaState: {
-        hasMedia: res.hasMedia,
-        isPlaying: res.isMediaPlaying ?? res.isActive,
-        currentTime: res.t ?? 0
-      }
-    });
-
-    // Update Status Badge
-    if (res.isActive && res.isMediaPlaying) {
-      statusBadge.textContent = 'Live';
-      statusBadge.classList.add('active');
-    } else {
-      statusBadge.textContent = 'Ready';
-      statusBadge.classList.remove('active');
+    if (res.mode && modeSelect.value !== res.mode) {
+      modeSelect.value = res.mode;
     }
 
-    // Update Title & Chip
-    sourceTitle.textContent = vm.source.title;
-    chipIcon.innerHTML = `<svg viewBox="0 0 16 16" width="12" height="12">${vm.provenance.iconSvg}</svg>`;
-    chipText.textContent = vm.provenance.label;
-    provenanceChip.title = vm.provenance.description;
+    if (res.telemetry?.raagaName && raagaNameDisplay) {
+      raagaNameDisplay.textContent = `Raaga: ${res.telemetry.raagaName}`;
+    }
+    if (res.telemetry?.taalaName && taalaNameDisplay) {
+      taalaNameDisplay.textContent = res.telemetry.taalaName;
+    }
+    if (res.telemetry?.currentSwara && swaraDisplay) {
+      swaraDisplay.textContent = res.telemetry.currentSwara;
+    }
 
-    // Update Main Button
-    const isPlaying = vm.transport.isPlaying;
-    toggleBtn.classList.toggle('active', isPlaying);
-    toggleBtn.setAttribute('aria-pressed', String(isPlaying));
-    toggleIcon.textContent = isPlaying ? '⏸' : '▶';
-    toggleBtnText.textContent = isPlaying ? 'Pause sonification' : 'Start listening';
-
-    // Update Mode Group
-    modeDesc.textContent = vm.mode.description;
-    modeGroup.querySelectorAll('.ejb-mode-btn').forEach((btn) => {
-      const mode = (btn as HTMLElement).dataset.mode;
-      const active = mode === vm.mode.active;
-      btn.classList.toggle('active', active);
-      btn.setAttribute('aria-checked', String(active));
-    });
+    if (res.lastPayload) {
+      renderMetrics(res.lastPayload);
+    } else if (res.t !== undefined) {
+      videoTime.textContent = `${res.t.toFixed(2)}s`;
+      frameIdx.textContent = String(res.frameIndex ?? 0);
+    }
   });
 }
 
-function setupButtons(): void {
-  // Main Play / Pause
+function setupEvents(): void {
   toggleBtn.addEventListener('click', () => {
     if (!activeTabId) return;
-    chrome.tabs.sendMessage(activeTabId, { type: 'TOGGLE_SONIFICATION' }, () => {
-      fetchStatus();
+
+    chrome.tabs.sendMessage(activeTabId, { type: 'TOGGLE_SONIFICATION' }, (res) => {
+      if (chrome.runtime.lastError) {
+        announce('Unable to connect to media pipeline on this page.');
+        return;
+      }
+      if (res) {
+        updateUiState(
+          res.extensionEnabled,
+          res.isActive,
+          true,
+          res.isMediaPlaying ?? res.isActive,
+          null
+        );
+        announce(res.extensionEnabled ? 'Auto-sonification enabled.' : 'Auto-sonification disabled.');
+      }
     });
   });
 
-  // Mode Selection
-  modeGroup.querySelectorAll('.ejb-mode-btn').forEach((btn) => {
-    btn.addEventListener('click', (e) => {
-      if (!activeTabId) return;
-      const target = e.currentTarget as HTMLElement;
-      const mode = target.dataset.mode as UiMode;
-      const internalMode = mode === 'exact' ? 'scientific' : mode === 'sweep' ? 'scanner' : 'raaga';
-
-      chrome.tabs.sendMessage(activeTabId, { type: 'SET_MODE', mode: internalMode }, () => {
-        fetchStatus();
-        announce(`Sonification mode set to ${mode}`);
-      });
-    });
-  });
-
-  // Open In-Page Listening Panel
-  openPanelBtn.addEventListener('click', () => {
+  modeSelect.addEventListener('change', () => {
     if (!activeTabId) return;
-    chrome.tabs.sendMessage(activeTabId, { type: 'TOGGLE_PANEL' }, () => {
-      window.close(); // Close popup so user interacts with in-page panel
+    const mode = modeSelect.value;
+    chrome.tabs.sendMessage(activeTabId, { type: 'SET_MODE', mode }, () => {
+      announce(`Sonification mode set to ${mode}.`);
     });
   });
 
-  // Open Listening Room
-  const openDemoStudio = () => {
-    const demoUrl = chrome.runtime.getURL('demo-page/dist/index.html');
-    chrome.tabs.create({ url: demoUrl });
-  };
-  openDemoBtn.addEventListener('click', openDemoStudio);
-  openDemoBtnEmpty.addEventListener('click', openDemoStudio);
-}
+  volumeRange.addEventListener('input', () => {
+    if (!activeTabId) return;
+    const volume = parseFloat(volumeRange.value);
+    chrome.tabs.sendMessage(activeTabId, { type: 'SET_VOLUME', volume });
+  });
 
-function announce(msg: string): void {
-  if (srAnnouncer) srAnnouncer.textContent = msg;
+  presetSelect.addEventListener('change', () => {
+    const selectedId = presetSelect.value;
+    const preset = PRESETS[selectedId];
+    if (!preset || !activeTabId) return;
+
+    chrome.tabs.sendMessage(
+      activeTabId,
+      { type: 'SELECT_PRESET', presetId: selectedId },
+      (res) => {
+        if (res?.success) {
+          updateUiState(true, true, true, true, preset);
+          announce(`Preset changed to ${preset.name}.`);
+        }
+      }
+    );
+  });
+
+  // Listen for broadcast frame updates forwarded to extension
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (msg.type === 'POPUP_METRIC_UPDATE') {
+      if (msg.payload) renderMetrics(msg.payload);
+      if (msg.sascScene) renderSascScene(msg.sascScene);
+      else if (msg.mappingProfile) renderMappingProfile(msg.mappingProfile);
+    }
+  });
 }
 
 window.addEventListener('unload', () => {
-  if (pollTimer) clearInterval(pollTimer);
+  if (pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
 });
 
 document.addEventListener('DOMContentLoaded', initPopup);

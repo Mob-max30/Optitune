@@ -7,76 +7,128 @@
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <div class="ejb-popup" role="region" aria-label="Earth Jukebox Controls">
+  <div class="popup-container" role="region" aria-label="Earth Jukebox Controls">
     <!-- Header -->
-    <header class="ejb-header">
-      <div class="ejb-brand">
-        <div class="ejb-logo" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+    <header class="header">
+      <div class="brand">
+        <div class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="10" />
             <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
             <path d="M2 12h20" />
+            <path d="M16 12a4 4 0 0 1-8 0" stroke="#38BDF8" stroke-width="2.5" />
           </svg>
         </div>
-        <span class="ejb-brand-title">Earth Jukebox</span>
+        <div>
+          <h1 class="title">Earth Jukebox</h1>
+          <p class="subtitle">NASA EIC Sonification</p>
+        </div>
       </div>
-      <span id="statusBadge" class="ejb-status-badge">Searching</span>
+      <span id="statusBadge" class="badge badge-inactive">Inactive</span>
     </header>
 
-    <!-- Source Info & Provenance Chip -->
-    <section id="sourceSection" class="ejb-source-section">
-      <h1 id="sourceTitle" class="ejb-source-title">NASA Earth Observation</h1>
-      <div id="provenanceChip" class="ejb-chip" title="Click to view calibration metadata">
-        <span id="chipIcon" class="ejb-chip-icon" aria-hidden="true"></span>
-        <span id="chipText">Estimated from the legend</span>
-      </div>
-    </section>
+    <!-- Screen Reader Status Announcer -->
+    <div id="srAnnouncer" class="sr-only" aria-live="polite" aria-atomic="true">
+      Earth Jukebox ready.
+    </div>
 
-    <!-- Actionable Empty State -->
-    <section id="emptyState" class="ejb-empty-state" style="display: none;">
-      <p class="ejb-empty-title">No NASA visualization found on this page.</p>
-      <p class="ejb-empty-desc">Open an Earth Information Center (earth.gov) or SVS (svs.gsfc.nasa.gov) visualization, or explore the offline Listening Room.</p>
-      <button id="openDemoBtnEmpty" class="ejb-btn ejb-btn-secondary">Open Listening Room</button>
-    </section>
-
-    <!-- Main Content Controls -->
-    <main id="mainControls" class="ejb-controls">
-      <!-- Main Play / Pause Button -->
-      <button id="toggleBtn" class="ejb-btn ejb-btn-primary" aria-label="Toggle Sonification" aria-pressed="false">
-        <span id="toggleIcon" class="ejb-btn-symbol" aria-hidden="true">▶</span>
-        <span id="toggleBtnText">Start listening</span>
+    <!-- Main Toggle Action -->
+    <section class="action-section">
+      <button id="toggleBtn" class="btn btn-primary" aria-label="Toggle Sonification" aria-pressed="false">
+        <span class="btn-icon" aria-hidden="true">▶</span>
+        <span id="toggleBtnText">Start Sonifying</span>
       </button>
+      <div class="shortcut-hint" aria-hidden="true">
+        Shortcut: <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd>
+      </div>
+    </section>
 
-      <!-- Mode Selector (Exact / Musical / Sweep) -->
-      <div class="ejb-mode-section">
-        <label class="ejb-section-label">How it sounds</label>
-        <div class="ejb-mode-group" role="radiogroup" aria-label="Sonification Mode">
-          <button class="ejb-mode-btn" data-mode="exact" role="radio" aria-checked="false">Exact</button>
-          <button class="ejb-mode-btn active" data-mode="musical" role="radio" aria-checked="true">Musical</button>
-          <button class="ejb-mode-btn" data-mode="sweep" role="radio" aria-checked="false">Sweep</button>
+    <!-- Preset Selection -->
+    <section class="section">
+      <label for="presetSelect" class="section-label">
+        NASA Visualization Preset
+      </label>
+      <select id="presetSelect" class="select" aria-label="Select NASA Visualization Preset">
+        <option value="" disabled>Detecting video...</option>
+      </select>
+      <p id="presetDescription" class="description-text">
+        Loading preset details...
+      </p>
+    </section>
+
+    <!-- Sonification Audio Mode & Volume (Pranav K) -->
+    <section class="section">
+      <label for="modeSelect" class="section-label">
+        Sonification Mode (Audio Engine)
+      </label>
+      <select id="modeSelect" class="select" aria-label="Select Sonification Mode">
+        <option value="raaga" selected>Indian Classical (Raagas & Taalas)</option>
+        <option value="artistic">Western Modal (Quantized Scales)</option>
+        <option value="scientific">Scientific Mode (Continuous Physical)</option>
+        <option value="scanner">Caldwell-73 Scanner Mode</option>
+      </select>
+      <div id="raagaStatusCard" style="margin-top: 8px; padding: 6px 10px; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 6px; font-size: 11px; display: flex; justify-content: space-between; align-items: center;">
+        <span style="color: #38bdf8; font-weight: 600;">🪕 <span id="raagaNameDisplay">Raaga: Bhoopali</span></span>
+        <span style="color: #94a3b8;"><span id="taalaNameDisplay">Keharwa (8 Beats)</span> | Swara: <strong id="swaraDisplay" style="color: #f1f5f9;">Sa</strong></span>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px;">
+        <label for="volumeRange" style="font-size: 11px; color: #94a3b8; font-weight: 600;">Volume</label>
+        <input type="range" id="volumeRange" min="0" max="1" step="0.05" value="0.8" style="width: 150px; accent-color: #38bdf8;" aria-label="Master Audio Volume">
+      </div>
+    </section>
+
+    <!-- Live Scientific Metrics Monitor -->
+    <section class="section metrics-section">
+      <h2 class="section-label">Live Scientific Metrics</h2>
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <span class="metric-name">Luminance</span>
+          <span id="metricLuma" class="metric-val">0.00</span>
+          <div class="meter-bar"><div id="meterLumaBar" class="meter-fill" style="width: 0%;"></div></div>
         </div>
-        <div id="modeDesc" class="ejb-mode-desc">Values snap to an authentic musical scale.</div>
+        <div class="metric-card">
+          <span class="metric-name">Physical Value</span>
+          <span id="metricDataValue" class="metric-val" title="Calibrated measurement">--</span>
+          <span id="metricUnit" class="metric-unit">calibrated</span>
+        </div>
+        <div class="metric-card">
+          <span class="metric-name">Dominant Color</span>
+          <div class="color-preview-container">
+            <div id="colorSwatch" class="color-swatch" aria-label="Color Preview"></div>
+            <span id="metricHue" class="metric-val">Hue: 0°</span>
+          </div>
+        </div>
+        <div class="metric-card">
+          <span class="metric-name">Motion Delta</span>
+          <span id="metricMotion" class="metric-val">0.00</span>
+          <div class="meter-bar"><div id="meterMotionBar" class="meter-fill" style="width: 0%;"></div></div>
+        </div>
       </div>
+      <div class="sync-status">
+        <span>Video Time: <strong id="videoTime">0.00s</strong></span>
+        <span>Frame: <strong id="frameIdx">0</strong></span>
+      </div>
+    </section>
 
-      <!-- Surface Launchers -->
-      <div class="ejb-actions">
-        <button id="openPanelBtn" class="ejb-btn ejb-btn-secondary" title="Open floating listening panel overlay">
-          <span>⛶</span> Open listening panel
-        </button>
-        <button id="openDemoBtn" class="ejb-btn ejb-btn-ghost" title="Launch full-screen listening room">
-          <span>↗</span> Open listening room
-        </button>
-      </div>
-    </main>
+    <!-- Sound Legend (Accessibility Guide) -->
+    <section class="section sound-legend-section">
+      <details>
+        <summary class="legend-summary">
+          <span>🎧 Sound Mapping Legend</span>
+        </summary>
+        <div id="soundLegendText" class="legend-content">
+          Higher pitch = higher canopy / elevated temperature.<br>
+          Stereo panning = geographic location.<br>
+          Flashes / lightning = percussive acoustic accents.
+        </div>
+      </details>
+    </section>
 
     <!-- Footer -->
-    <footer class="ejb-footer">
+    <footer class="footer">
       <span>NASA Space Apps 2026</span>
-      <span>Shortcut: <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd></span>
+      <span>Local client-side pipeline</span>
     </footer>
-
-    <!-- Screen Reader Announcer -->
-    <div id="srAnnouncer" class="sr-only" aria-live="polite" aria-atomic="true">Earth Jukebox launcher ready.</div>
   </div>
   <script type="module" src="popup.ts"></script>
 </body>

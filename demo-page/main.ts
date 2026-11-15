@@ -1,19 +1,3 @@
-/**
- * Earth Jukebox — The Listening Room (Demo Studio) Controller
- * Specification: Amendment B, Section 6c & Gate B5
- *
- * Full-page cinematic sonification studio featuring:
- * - 340px The Listening Disc with audio-reactive rim and outer progress seek
- * - Accessible GridOverlay with 32-cell Data View table toggle
- * - Interactive offline NASA procedural simulations & video file upload
- * - Exact / Musical / Sweep 3-choice mode selector
- * - Phenomenon sound identity toggle
- * - What you're hearing legend with per-layer soloing
- * - Under the hood drawer (spatial heatmap, metrics, raw Contract v1 JSON)
- * - Presentation mode ('P') for demo recordings
- * - Full offline operation with 0 network egress
- */
-
 import type {
   EjbFramePayload,
   EjbReadyPayload,
@@ -30,9 +14,8 @@ import { EarthJukeboxAudioEngine, type SonificationMode } from '../extension/src
 import { adaptContractV1ToSfr } from '../extension/src/sfr/adapters/contract-v1';
 import { AutonomousAudioEngineAdapter } from '../extension/src/semantic/audio-profile-adapter';
 import { SascAudioEngineAdapter } from '../extension/src/sasc/sasc-audio-adapter';
-import { ListeningDisc } from '../extension/src/ui/disc';
-import { GridOverlay } from '../extension/src/ui/grid-overlay';
-import { createUiViewModel, type UiMode, type UiViewModel } from '../extension/src/ui/view-model';
+import { generateSascStructuredLegendHtml } from '../extension/src/sasc/sasc-legend';
+import { classifyVisualPhenomenon } from '../extension/src/audio/raagas';
 
 // DOM Elements
 const simulationCanvas = document.getElementById('simulationCanvas') as HTMLCanvasElement;
@@ -53,94 +36,65 @@ const resetBtn = document.getElementById('resetBtn') as HTMLButtonElement;
 const timeSlider = document.getElementById('timeSlider') as HTMLInputElement;
 const timeDisplay = document.getElementById('timeDisplay') as HTMLSpanElement;
 const volumeSlider = document.getElementById('volumeSlider') as HTMLInputElement;
-const muteBtn = document.getElementById('muteBtn') as HTMLButtonElement;
 
 const demoPresetSelect = document.getElementById('demoPresetSelect') as HTMLSelectElement;
+const demoPresetDescription = document.getElementById('demoPresetDescription') as HTMLParagraphElement;
+const demoSoundLegend = document.getElementById('demoSoundLegend') as HTMLDivElement;
+const demoModeSelect = document.getElementById('demoModeSelect') as HTMLSelectElement;
 const audioStatusBadge = document.getElementById('audioStatusBadge') as HTMLSpanElement;
-const roomSourceTitle = document.getElementById('roomSourceTitle') as HTMLElement;
-const roomProvenanceChip = document.getElementById('roomProvenanceChip') as HTMLElement;
-const roomChipIcon = document.getElementById('roomChipIcon') as HTMLElement;
-const roomChipText = document.getElementById('roomChipText') as HTMLElement;
-const roomCaption = document.getElementById('roomCaption') as HTMLElement;
-const roomModeDesc = document.getElementById('roomModeDesc') as HTMLElement;
-const identityCheckbox = document.getElementById('identityCheckbox') as HTMLInputElement;
-const roomLegendList = document.getElementById('roomLegendList') as HTMLElement;
-const btnToggleTable = document.getElementById('btnToggleTable') as HTMLButtonElement;
-const btnPresentation = document.getElementById('btnPresentation') as HTMLButtonElement;
-const btnShortcuts = document.getElementById('btnShortcuts') as HTMLButtonElement;
-const btnCloseModal = document.getElementById('btnCloseModal') as HTMLButtonElement;
-const shortcutsModal = document.getElementById('shortcutsModal') as HTMLElement;
 
-// Drawer Elements
+// Dashboard Value Elements
+const valLuma = document.getElementById('valLuma') as HTMLDivElement;
+const meterLuma = document.getElementById('meterLuma') as HTMLDivElement;
+const valPhysical = document.getElementById('valPhysical') as HTMLDivElement;
+const valPhysicalUnit = document.getElementById('valPhysicalUnit') as HTMLDivElement;
+const valColorSwatch = document.getElementById('valColorSwatch') as HTMLDivElement;
+const valHue = document.getElementById('valHue') as HTMLDivElement;
+const valSat = document.getElementById('valSat') as HTMLDivElement;
+const valMotion = document.getElementById('valMotion') as HTMLDivElement;
+const meterMotion = document.getElementById('meterMotion') as HTMLDivElement;
 const spatialHeatmap = document.getElementById('spatialHeatmap') as HTMLDivElement;
 const jsonPayloadView = document.getElementById('jsonPayloadView') as HTMLPreElement;
-const valLuma = document.getElementById('valLuma') as HTMLElement;
-const valHue = document.getElementById('valHue') as HTMLElement;
-const valMotion = document.getElementById('valMotion') as HTMLElement;
-const valPhysical = document.getElementById('valPhysical') as HTMLElement;
-
-// Disc and Grid
-const roomDiscCanvas = document.getElementById('roomDiscCanvas') as HTMLCanvasElement;
-const discStageContainer = document.getElementById('discStageContainer') as HTMLElement;
+const audioVisualizer = document.getElementById('audioVisualizer') as HTMLCanvasElement;
+const visCtx = audioVisualizer.getContext('2d')!;
 
 // App State
 let isPlaying = false;
-let isMuted = false;
-let lastVolume = 0.7;
 let activePreset: PresetConfig = PRESETS['gedi-forest-height'];
 let preparedLut: PreparedLegendLUT | null = prepareLegendLUT(activePreset.legend);
 let currentTime = 0;
 let frameCount = 0;
 let lastTickTime = 0;
 const tickIntervalMs = 1000 / 12; // 12 Hz
-let isDataViewActive = false;
-let soloedVoice: string | null = null;
 
-// Buffers
+// Analysis Buffers
 const offscreenAnalysisCanvas = document.createElement('canvas');
 offscreenAnalysisCanvas.width = 32;
 offscreenAnalysisCanvas.height = 32;
 const offscreenCtx = offscreenAnalysisCanvas.getContext('2d', { willReadFrequently: true })!;
+
 let previousBuffer: Uint8ClampedArray | null = null;
 const cellBaselines = new Float32Array(64).fill(0.1);
 
-// Audio Engine & Adapters
-const audioEngine = new EarthJukeboxAudioEngine({ mode: 'raaga', masterVolume: 0.7 });
+// Earth Jukebox Sonification Audio Engine (Pranav K)
+const audioEngine = new EarthJukeboxAudioEngine({
+  mode: 'raaga',
+  masterVolume: 0.7
+});
 const autonomousAdapter = new AutonomousAudioEngineAdapter(audioEngine);
 const sascAdapter = new SascAudioEngineAdapter(audioEngine);
+let lastProfileId: string | null = null;
 
-// Disc & Grid Overlay
-let listeningDisc: ListeningDisc | null = null;
-let gridOverlay: GridOverlay | null = null;
-let currentViewModel: UiViewModel | null = null;
-
+// Initialize
 function init(): void {
   setupPresetSelect();
   setupHeatmapCells();
-  setupDiscAndGrid();
   setupEventListeners();
   drawSimulation(0);
   drawRoiOverlay();
   setupAudioVisualizerLoop();
 
-  console.log('[Listening Room] Initialized with 10 NASA Presets and The Listening Disc.');
-}
-
-function setupDiscAndGrid(): void {
-  listeningDisc = new ListeningDisc({
-    canvas: roomDiscCanvas,
-    onSeek: (norm) => {
-      seekTo(norm * 60);
-    },
-    onCellClick: (cell) => {
-      console.log('[Cell Selected]', cell.readout);
-    }
-  });
-  listeningDisc.setAnalyserNode(audioEngine.getAnalyserNode());
-
-  gridOverlay = new GridOverlay(discStageContainer, (cell) => {
-    console.log('[Cell Keyboard Selected]', cell.readout);
-  });
+  console.log('[Earth Jukebox Studio] Initialized with 10 NASA Presets.');
 }
 
 function setupPresetSelect(): void {
@@ -157,10 +111,20 @@ function setupPresetSelect(): void {
 }
 
 function updatePresetInfo(): void {
+  demoPresetDescription.textContent = activePreset.description;
+  if (activePreset.soundHint) {
+    demoSoundLegend.innerHTML = `🎧 <strong>Sound Mapping:</strong> ${activePreset.soundHint}`;
+  }
+  if (activePreset.legend?.unit) {
+    valPhysicalUnit.textContent = `Calibrated (${activePreset.legend.unit})`;
+  } else {
+    valPhysicalUnit.textContent = `Approximate intensity`;
+  }
   preparedLut = prepareLegendLUT(activePreset.legend);
   audioEngine.setPreset(activePreset.id);
   autonomousAdapter.resetProfile();
   sascAdapter.resetScene();
+  lastProfileId = null;
   cellBaselines.fill(0.1);
   previousBuffer = null;
   drawRoiOverlay();
@@ -177,7 +141,7 @@ function setupHeatmapCells(): void {
 }
 
 // -------------------------------------------------------------
-// Procedural Simulations (Offline)
+// Simulation Renderer (Realistic Synthetic NASA Visualizations)
 // -------------------------------------------------------------
 function drawSimulation(t: number): void {
   const w = simulationCanvas.width;
@@ -187,17 +151,19 @@ function drawSimulation(t: number): void {
   simCtx.fillRect(0, 0, w, h);
 
   if (activePreset.id === 'gedi-forest-height') {
+    // Draw Earth globe with canopy height gradients
     const grad = simCtx.createLinearGradient(0, 0, w, h);
-    grad.addColorStop(0, '#2d1e08');
-    grad.addColorStop(0.3, '#356314');
-    grad.addColorStop(0.7, '#148c3b');
-    grad.addColorStop(1.0, '#38e8a8');
+    grad.addColorStop(0, '#2d1e08'); // low vegetation
+    grad.addColorStop(0.3, '#356314'); // mid canopy
+    grad.addColorStop(0.7, '#148c3b'); // tall forest
+    grad.addColorStop(1.0, '#38e8a8'); // old-growth towering canopy
 
     simCtx.fillStyle = grad;
     simCtx.beginPath();
     simCtx.ellipse(w / 2, h / 2, w * 0.45, h * 0.42, 0, 0, Math.PI * 2);
     simCtx.fill();
 
+    // Continent contour ripples
     simCtx.strokeStyle = '#a7f3d0';
     simCtx.lineWidth = 3;
     for (let r = 30; r < 140; r += 28) {
@@ -206,6 +172,7 @@ function drawSimulation(t: number): void {
       simCtx.stroke();
     }
   } else if (activePreset.id === 'night-lights') {
+    // Earth at night: urban clusters
     simCtx.fillStyle = '#060912';
     simCtx.fillRect(0, 0, w, h);
 
@@ -226,14 +193,17 @@ function drawSimulation(t: number): void {
       simCtx.fill();
     }
   } else if (activePreset.id === 'iss-lightning') {
+    // Dark Earth surface with lightning flash bursts
     simCtx.fillStyle = '#040711';
     simCtx.fillRect(0, 0, w, h);
 
+    // Dim storm clouds
     simCtx.fillStyle = '#172554';
     simCtx.beginPath();
     simCtx.ellipse(w / 2, h / 2, w * 0.4, h * 0.35, 0, 0, Math.PI * 2);
     simCtx.fill();
 
+    // Lightning strike flashes (periodic spike)
     if (Math.sin(t * 5) > 0.82) {
       const lx = w * (0.2 + 0.6 * ((Math.sin(t * 13) + 1) / 2));
       const ly = h * (0.25 + 0.5 * ((Math.cos(t * 17) + 1) / 2));
@@ -249,15 +219,17 @@ function drawSimulation(t: number): void {
       simCtx.fill();
     }
   } else if (activePreset.id === 'sst-currents') {
+    // Sea surface temperature thermal gradient & swirling currents
     const grad = simCtx.createLinearGradient(0, 0, w, h);
-    grad.addColorStop(0, '#1e1b4b');
-    grad.addColorStop(0.3, '#0284c7');
-    grad.addColorStop(0.65, '#eab308');
-    grad.addColorStop(1.0, '#dc2626');
+    grad.addColorStop(0, '#1e1b4b'); // polar cold
+    grad.addColorStop(0.3, '#0284c7'); // temperate
+    grad.addColorStop(0.65, '#eab308'); // subtropical
+    grad.addColorStop(1.0, '#dc2626'); // equatorial heat
 
     simCtx.fillStyle = grad;
     simCtx.fillRect(0, 0, w, h);
 
+    // Eddies and current streaks
     simCtx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
     simCtx.lineWidth = 2;
     for (let i = 0; i < 8; i++) {
@@ -270,6 +242,7 @@ function drawSimulation(t: number): void {
       simCtx.stroke();
     }
   } else {
+    // General dynamic simulation
     const grad = simCtx.createRadialGradient(w / 2, h / 2, 20, w / 2, h / 2, w / 2);
     grad.addColorStop(0, '#38bdf8');
     grad.addColorStop(0.5, '#0b3d91');
@@ -287,95 +260,116 @@ function drawRoiOverlay(): void {
   const roi = activePreset.roi;
   const rx = roi[0] * w;
   const ry = roi[1] * h;
-  const rw = (roi[2] - roi[0]) * w;
-  const rh = (roi[3] - roi[1]) * h;
+  const rw = roi[2] * w;
+  const rh = roi[3] * h;
 
-  roiCtx.strokeStyle = 'rgba(143, 211, 232, 0.4)';
-  roiCtx.lineWidth = 1;
-  roiCtx.setLineDash([4, 4]);
+  // Draw semi-transparent darkened mask outside ROI
+  roiCtx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+  // Top
+  roiCtx.fillRect(0, 0, w, ry);
+  // Bottom
+  roiCtx.fillRect(0, ry + rh, w, h - (ry + rh));
+  // Left
+  roiCtx.fillRect(0, ry, rx, rh);
+  // Right
+  roiCtx.fillRect(rx + rw, ry, w - (rx + rw), rh);
+
+  // Draw active ROI border
+  roiCtx.strokeStyle = '#38bdf8';
+  roiCtx.lineWidth = 1.5;
+  roiCtx.setLineDash([6, 4]);
   roiCtx.strokeRect(rx, ry, rw, rh);
+  roiCtx.setLineDash([]);
+
+  // Label ROI tag
+  roiCtx.fillStyle = '#38bdf8';
+  roiCtx.font = '10px monospace';
+  roiCtx.fillText(`ROI DATA REGION [${activePreset.id}]`, rx + 6, ry + 14);
 }
 
 // -------------------------------------------------------------
-// Real-time Pipeline Tick (12 Hz)
+// Real-time Visual Analysis Pipeline (10-15 Hz)
 // -------------------------------------------------------------
-function tickPipeline(timestamp: number): void {
-  if (!isPlaying) return;
+function analyzeCurrentFrame(now: number): void {
+  if (now - lastTickTime < tickIntervalMs) return;
+  lastTickTime = now;
+  frameCount++;
 
-  if (timestamp - lastTickTime >= tickIntervalMs) {
-    lastTickTime = timestamp;
-    frameCount++;
+  const source = mediaSourceSelect.value === 'synthetic' ? simulationCanvas : playerVideo;
+  const sourceW = source instanceof HTMLVideoElement ? source.videoWidth || 640 : source.width;
+  const sourceH = source instanceof HTMLVideoElement ? source.videoHeight || 360 : source.height;
 
-    const isVideo = mediaSourceSelect.value !== 'synthetic';
-    if (!isVideo) {
-      currentTime += tickIntervalMs / 1000;
-      if (currentTime > 60) currentTime = 0;
-      drawSimulation(currentTime);
-    } else {
-      currentTime = playerVideo.currentTime;
-    }
+  const roi = activePreset.roi;
+  const sx = Math.max(0, Math.floor(roi[0] * sourceW));
+  const sy = Math.max(0, Math.floor(roi[1] * sourceH));
+  const sw = Math.min(sourceW - sx, Math.floor(roi[2] * sourceW));
+  const sh = Math.min(sourceH - sy, Math.floor(roi[3] * sourceH));
 
-    processCurrentFrame(currentTime, frameCount);
-  }
+  if (sw <= 0 || sh <= 0) return;
 
-  requestAnimationFrame(tickPipeline);
-}
-
-function processCurrentFrame(t: number, frameIndex: number): void {
-  const isVideo = mediaSourceSelect.value !== 'synthetic';
-  const sourceElement = isVideo ? playerVideo : simulationCanvas;
-  const w = isVideo ? playerVideo.videoWidth || 640 : simulationCanvas.width;
-  const h = isVideo ? playerVideo.videoHeight || 360 : simulationCanvas.height;
-
-  const [rx1, ry1, rx2, ry2] = activePreset.roi;
-  const sx = rx1 * w;
-  const sy = ry1 * h;
-  const sw = (rx2 - rx1) * w;
-  const sh = (ry2 - ry1) * h;
-
-  offscreenCtx.drawImage(sourceElement, sx, sy, sw, sh, 0, 0, 32, 32);
+  // Downsample to 32x32 offscreen canvas
+  offscreenCtx.drawImage(source, sx, sy, sw, sh, 0, 0, 32, 32);
   const imgData = offscreenCtx.getImageData(0, 0, 32, 32);
-  const buffer = imgData.data;
+  const currentBuffer = imgData.data;
 
   const ignoreDark = activePreset.ignoreDark ?? 0.05;
-  const brightness = calculateAverageLuminance(buffer, { ignoreDark });
-  const colorMetrics = extractColorMetrics(buffer, { ignoreDark });
-  const motionResult = calculateMotionAndEvents(
-    buffer,
+
+  // 1. Luminance
+  const brightness = calculateAverageLuminance(currentBuffer, { ignoreDark });
+
+  // 2. Color & Hue Histogram
+  const colorMetrics = extractColorMetrics(currentBuffer, { ignoreDark });
+
+  // 3. Motion Delta & Event Bursts
+  const motionRes = calculateMotionAndEvents(
+    currentBuffer,
     previousBuffer,
     32,
     32,
     cellBaselines,
-    { detectEvents: activePreset.events?.detect ?? null, eventThreshold: activePreset.events?.threshold ?? 0.20 }
+    {
+      detectEvents: activePreset.events?.detect ?? null,
+      eventThreshold: activePreset.events?.threshold ?? 0.20,
+      baselineAlpha: activePreset.events?.baselineAlpha ?? 0.05
+    }
   );
 
-  let dataValue = calculateAverageLegendValue(buffer, preparedLut, 0.20);
+  // 4. Legend-Calibrated Measurement (requiring 20% coverage)
+  let dataValue = calculateAverageLegendValue(currentBuffer, preparedLut, 0.20);
+
+  // Dynamic scientific proxy:
+  // When legend is not calibrated, dynamically compute from live visual energy and motion
   if (dataValue === null) {
     dataValue = round3(clamp(
       brightness * 0.45 +
       colorMetrics.saturation * 0.30 +
       (Math.abs(colorMetrics.hue - 0.5) * 0.25) +
-      (motionResult.motion * 0.30)
+      (motionRes.motion * 0.30)
     ));
   }
 
+  // 5. Regional Grid (4x8)
   const regions = calculateRegionGrid(
-    buffer,
-    { rows: activePreset.grid?.[0] ?? 4, cols: activePreset.grid?.[1] ?? 8, width: 32, height: 32, ignoreDark },
+    currentBuffer,
+    { rows: 4, cols: 8, width: 32, height: 32, ignoreDark },
     preparedLut
   );
-  const profile = calculateSpatialProfiles(buffer, 32, 32, 32);
 
-  if (!previousBuffer || previousBuffer.length !== buffer.length) {
-    previousBuffer = new Uint8ClampedArray(buffer);
+  // Cache buffer for next motion delta
+  if (!previousBuffer || previousBuffer.length !== currentBuffer.length) {
+    previousBuffer = new Uint8ClampedArray(currentBuffer);
   } else {
-    previousBuffer.set(buffer);
+    previousBuffer.set(currentBuffer);
   }
 
+  // 6. Caldwell-73 Scanner Profile
+  const profile = calculateSpatialProfiles(currentBuffer, 32, 32, 32);
+
+  // 7. Emit standard EJB CustomEvent on window
   const payload: EjbFramePayload = {
     v: 1,
-    t: round3(t),
-    frameIndex,
+    t: round3(currentTime),
+    frameIndex: frameCount,
     vizId: activePreset.id,
     metrics: {
       brightness,
@@ -383,281 +377,246 @@ function processCurrentFrame(t: number, frameIndex: number): void {
       hue: colorMetrics.hue,
       saturation: colorMetrics.saturation,
       dataValue,
-      motion: motionResult.motion,
+      motion: motionRes.motion,
       regions
     },
-    flags: { seeked: false, scene_cut: motionResult.sceneCut },
-    events: motionResult.events.length > 0 ? motionResult.events : undefined,
+    flags: {
+      seeked: false,
+      scene_cut: motionRes.sceneCut
+    },
+    events: motionRes.events.length > 0 ? motionRes.events : undefined,
     profile
   };
 
-  const sfr = adaptContractV1ToSfr(payload);
-  autonomousAdapter.processScientificFrame(sfr);
-  const mappingProfile = autonomousAdapter.getActiveProfile();
-
-  // Update UI View Model & Components
-  const vm = createUiViewModel({
-    payload,
-    preset: activePreset,
-    mappingProfile,
-    telemetry: audioEngine.getTelemetry(),
-    engineState: {
-      isSonifying: isPlaying,
-      mode: audioEngine.getTelemetry().mode,
-      masterVolume: lastVolume,
-      isMuted
-    },
-    mediaState: {
-      title: activePreset.name,
-      currentTime: t,
-      duration: isVideo ? playerVideo.duration || 60 : 60,
-      hasMedia: true,
-      isPlaying
+  const sfrFrame = adaptContractV1ToSfr(payload);
+  if (isPlaying) {
+    sascAdapter.processScientificFrame(sfrFrame);
+    const sceneProfile = sascAdapter.getActiveSceneProfile();
+    if (sceneProfile && sceneProfile.sceneId !== lastProfileId) {
+      lastProfileId = sceneProfile.sceneId;
+      demoSoundLegend.innerHTML = generateSascStructuredLegendHtml(sceneProfile);
     }
-  });
-  currentViewModel = vm;
+  }
 
-  updateUiWithViewModel(vm, payload);
+  window.dispatchEvent(
+    new CustomEvent<EjbFramePayload>('ejb:frame', {
+      detail: payload,
+      bubbles: true,
+      composed: true
+    })
+  );
+
+  // Update UI Elements
+  updateDashboard(payload);
 }
 
-function updateUiWithViewModel(vm: UiViewModel, payload: EjbFramePayload): void {
-  // Title & Provenance
-  roomSourceTitle.textContent = vm.source.title;
-  roomChipIcon.innerHTML = `<svg viewBox="0 0 16 16" width="12" height="12">${vm.provenance.iconSvg}</svg>`;
-  roomChipText.textContent = vm.provenance.label;
-  roomProvenanceChip.title = vm.provenance.description;
+function updateDashboard(p: EjbFramePayload): void {
+  valLuma.textContent = p.metrics.brightness.toFixed(3);
+  meterLuma.style.width = `${Math.round(p.metrics.brightness * 100)}%`;
 
-  // Caption
-  roomCaption.textContent = vm.caption;
+  if (p.metrics.dataValue !== null) {
+    // Un-normalize to physical units if legend defined
+    if (activePreset.legend && activePreset.legend.min !== undefined && activePreset.legend.max !== undefined) {
+      const realVal = activePreset.legend.min + p.metrics.dataValue * (activePreset.legend.max - activePreset.legend.min);
+      valPhysical.textContent = `${realVal.toFixed(1)} ${activePreset.legend.unit ?? ''}`;
+    } else {
+      valPhysical.textContent = p.metrics.dataValue.toFixed(3);
+    }
+  } else {
+    valPhysical.textContent = `${(p.metrics.brightness * 100).toFixed(0)}% (approx)`;
+  }
 
-  // Time Readout
-  timeSlider.value = String((vm.transport.currentTime / (vm.transport.duration || 60)) * 100);
-  timeDisplay.textContent = `${formatTime(vm.transport.currentTime)} / ${formatTime(vm.transport.duration)}`;
+  valHue.textContent = `${Math.round(p.metrics.hue * 360)}°`;
+  valSat.textContent = `Sat: ${Math.round(p.metrics.saturation * 100)}%`;
+  const dc = p.metrics.dominantColor;
+  valColorSwatch.style.backgroundColor = `rgb(${Math.round(dc.r * 255)}, ${Math.round(dc.g * 255)}, ${Math.round(dc.b * 255)})`;
 
-  // Update Disc & Grid
-  listeningDisc?.updateViewModel(vm);
-  gridOverlay?.updateViewModel(vm);
+  valMotion.textContent = p.metrics.motion.toFixed(3);
+  meterMotion.style.width = `${Math.round(p.metrics.motion * 100)}%`;
 
-  // Update Legend List
-  renderLegend(vm);
-
-  // Update Drawer
-  valLuma.textContent = vm.underTheHood.brightness.toFixed(2);
-  valHue.textContent = `${vm.underTheHood.hueDegrees}°`;
-  valMotion.textContent = vm.underTheHood.motionDelta.toFixed(2);
-  valPhysical.textContent = vm.underTheHood.dataValue !== null
-    ? `${(activePreset.legend?.min ?? 0) + vm.underTheHood.dataValue * ((activePreset.legend?.max ?? 1) - (activePreset.legend?.min ?? 0)).toFixed(1)} ${activePreset.legend?.unit || ''}`
-    : 'proxy only';
-
-  // Heatmap Cells
-  const gridCells = payload.metrics.regions.dataValue || payload.metrics.regions.brightness;
+  // Update 4x8 heatmap cells
+  const bGrid = p.metrics.regions.brightness;
   for (let i = 0; i < 32; i++) {
-    const cEl = document.getElementById(`cell-${i}`);
-    if (cEl) {
-      const v = gridCells[i] ?? 0;
-      cEl.style.backgroundColor = `rgba(143, 211, 232, ${Math.max(0.08, v * 0.75)})`;
+    const cell = document.getElementById(`cell-${i}`);
+    if (cell) {
+      const b = bGrid[i] ?? 0;
+      cell.style.backgroundColor = `rgba(56, 189, 248, ${0.1 + b * 0.85})`;
     }
   }
 
-  // JSON Pre
-  jsonPayloadView.textContent = JSON.stringify(payload, null, 2);
+  // Raw JSON Inspector
+  jsonPayloadView.textContent = JSON.stringify(p, null, 2);
 }
 
-function renderLegend(vm: UiViewModel): void {
-  roomLegendList.innerHTML = '';
-  for (const item of vm.legend.items) {
-    const row = document.createElement('div');
-    row.className = 'room-legend-row';
-    row.innerHTML = `
-      <div>
-        <strong style="color:var(--ejb-color-text);">${item.featureName}</strong>
-        <div style="font-size:11px;color:var(--ejb-color-muted);">${item.directionText}</div>
-      </div>
-      <button class="room-btn-solo ${soloedVoice === item.targetVoice ? 'active' : ''}">Solo</button>
-    `;
-
-    const soloBtn = row.querySelector('.room-btn-solo') as HTMLButtonElement;
-    soloBtn.addEventListener('click', () => {
-      if (soloedVoice === item.targetVoice) {
-        soloedVoice = null;
-        soloBtn.classList.remove('active');
-        audioEngine.setSoloVoice(null);
-      } else {
-        soloedVoice = item.targetVoice;
-        roomLegendList.querySelectorAll('.room-btn-solo').forEach(b => b.classList.remove('active'));
-        soloBtn.classList.add('active');
-        audioEngine.setSoloVoice(item.targetVoice);
-      }
-    });
-
-    roomLegendList.appendChild(row);
-  }
+// -------------------------------------------------------------
+// Web Audio Synthesizer (Powered by EarthJukeboxAudioEngine)
+// -------------------------------------------------------------
+function initAudioEngine(): void {
+  audioEngine.start();
+  audioStatusBadge.textContent = 'Audio: Live (Web Audio - Pranav)';
+  audioStatusBadge.classList.add('active');
 }
 
 function setupAudioVisualizerLoop(): void {
-  const loop = () => {
-    if (listeningDisc && isPlaying && !isDataViewActive) {
-      listeningDisc.render();
+  function renderScope() {
+    requestAnimationFrame(renderScope);
+    const w = audioVisualizer.width;
+    const h = audioVisualizer.height;
+
+    visCtx.fillStyle = '#060b17';
+    visCtx.fillRect(0, 0, w, h);
+
+    const analyser = audioEngine.getAnalyserNode();
+    if (!analyser) {
+      visCtx.strokeStyle = '#223254';
+      visCtx.lineWidth = 1.5;
+      visCtx.beginPath();
+      visCtx.moveTo(0, h / 2);
+      visCtx.lineTo(w, h / 2);
+      visCtx.stroke();
+      return;
     }
-    requestAnimationFrame(loop);
-  };
-  requestAnimationFrame(loop);
-}
 
-function formatTime(secs: number): string {
-  const m = Math.floor(secs / 60);
-  const s = Math.floor(secs % 60);
-  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-}
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    analyser.getByteTimeDomainData(dataArray);
 
-function seekTo(targetSeconds: number): void {
-  currentTime = targetSeconds;
-  if (mediaSourceSelect.value !== 'synthetic') {
-    playerVideo.currentTime = targetSeconds;
+    visCtx.lineWidth = 2;
+    visCtx.strokeStyle = '#38bdf8';
+    visCtx.beginPath();
+
+    const sliceWidth = w / bufferLength;
+    let x = 0;
+
+    for (let i = 0; i < bufferLength; i++) {
+      const v = dataArray[i] / 128.0;
+      const y = (v * h) / 2;
+      if (i === 0) visCtx.moveTo(x, y);
+      else visCtx.lineTo(x, y);
+      x += sliceWidth;
+    }
+
+    visCtx.lineTo(w, h / 2);
+    visCtx.stroke();
   }
+  requestAnimationFrame(renderScope);
 }
 
 // -------------------------------------------------------------
-// Event Listeners & Keyboard Layer
+// Playback Loop & Event Handlers
 // -------------------------------------------------------------
+let animFrameId: number | null = null;
+
+function loop(timestamp: number): void {
+  if (!isPlaying) return;
+
+  if (mediaSourceSelect.value === 'synthetic') {
+    currentTime += 1 / 60;
+    if (currentTime > 60) currentTime = 0;
+    timeSlider.value = String(currentTime);
+    updateTimeDisplay();
+    drawSimulation(currentTime);
+  } else {
+    currentTime = playerVideo.currentTime;
+    timeSlider.value = String(currentTime);
+    updateTimeDisplay();
+  }
+
+  analyzeCurrentFrame(timestamp);
+  animFrameId = requestAnimationFrame(loop);
+}
+
+function updateTimeDisplay(): void {
+  const curMin = Math.floor(currentTime / 60);
+  const curSec = Math.floor(currentTime % 60);
+  timeDisplay.textContent = `${String(curMin).padStart(2, '0')}:${String(curSec).padStart(2, '0')} / 01:00`;
+}
+
 function setupEventListeners(): void {
-  playPauseBtn.addEventListener('click', async () => {
-    if (!isPlaying) {
-      await audioEngine.start();
-      audioEngine.resume();
-      isPlaying = true;
-      playPauseBtn.textContent = '⏸';
-      audioStatusBadge.textContent = 'Active';
+  playPauseBtn.addEventListener('click', () => {
+    isPlaying = !isPlaying;
+    if (isPlaying) {
+      audioEngine.start();
+      audioStatusBadge.textContent = 'Audio: Live (Web Audio - Pranav)';
       audioStatusBadge.classList.add('active');
+      playPauseBtn.textContent = '⏸ Pause Sonification';
+      playPauseBtn.classList.add('active');
       if (mediaSourceSelect.value !== 'synthetic') {
         playerVideo.play();
       }
-      requestAnimationFrame(tickPipeline);
+      animFrameId = requestAnimationFrame(loop);
     } else {
       audioEngine.pause();
-      isPlaying = false;
-      playPauseBtn.textContent = '▶';
-      audioStatusBadge.textContent = 'Paused';
+      audioStatusBadge.textContent = 'Audio: Paused';
       audioStatusBadge.classList.remove('active');
+      playPauseBtn.textContent = '▶ Start Sonification';
+      playPauseBtn.classList.remove('active');
       if (mediaSourceSelect.value !== 'synthetic') {
         playerVideo.pause();
       }
+      if (animFrameId) cancelAnimationFrame(animFrameId);
     }
   });
 
   resetBtn.addEventListener('click', () => {
-    seekTo(0);
+    currentTime = 0;
+    timeSlider.value = '0';
+    if (mediaSourceSelect.value !== 'synthetic') {
+      playerVideo.currentTime = 0;
+    }
+    updateTimeDisplay();
+    drawSimulation(0);
   });
 
   timeSlider.addEventListener('input', () => {
-    const norm = parseFloat(timeSlider.value) / 100;
-    seekTo(norm * 60);
+    currentTime = parseFloat(timeSlider.value);
+    if (mediaSourceSelect.value !== 'synthetic') {
+      playerVideo.currentTime = currentTime;
+    }
+    updateTimeDisplay();
+    drawSimulation(currentTime);
   });
 
   volumeSlider.addEventListener('input', () => {
-    lastVolume = parseFloat(volumeSlider.value);
-    audioEngine.setMasterVolume(lastVolume);
+    audioEngine.setMasterVolume(parseFloat(volumeSlider.value));
   });
 
-  muteBtn.addEventListener('click', () => {
-    isMuted = !isMuted;
-    muteBtn.textContent = isMuted ? '🔇' : '🔊';
-    audioEngine.setMasterVolume(isMuted ? 0 : lastVolume);
+  demoModeSelect.addEventListener('change', () => {
+    audioEngine.setMode(demoModeSelect.value as SonificationMode);
   });
 
   demoPresetSelect.addEventListener('change', () => {
-    const sel = PRESETS[demoPresetSelect.value];
-    if (sel) {
-      activePreset = sel;
-      updatePresetInfo();
-    }
+    activePreset = PRESETS[demoPresetSelect.value];
+    updatePresetInfo();
+    drawSimulation(currentTime);
   });
 
-  // Mode Selection
-  document.querySelectorAll('.room-mode-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const mode = (e.currentTarget as HTMLElement).dataset.mode as UiMode;
-      const internalMode = mode === 'exact' ? 'scientific' : mode === 'sweep' ? 'scanner' : 'raaga';
-      audioEngine.setMode(internalMode);
-
-      document.querySelectorAll('.room-mode-btn').forEach(b => b.classList.remove('active'));
-      (e.currentTarget as HTMLElement).classList.add('active');
-      roomModeDesc.textContent = mode === 'exact'
-        ? 'Pitch continuously follows the measured value.'
-        : mode === 'sweep'
-        ? 'A playhead reads the image columns left to right.'
-        : 'Values snap to an authentic musical scale.';
-    });
-  });
-
-  // Identity checkbox
-  identityCheckbox.addEventListener('change', () => {
-    autonomousAdapter.setSemanticEnhance(identityCheckbox.checked);
-  });
-
-  // Data view toggle
-  btnToggleTable.addEventListener('click', () => {
-    isDataViewActive = !isDataViewActive;
-    gridOverlay?.setTableView(isDataViewActive);
-    roomDiscCanvas.style.display = isDataViewActive ? 'none' : 'block';
-    btnToggleTable.textContent = isDataViewActive ? '◎ Disc View' : '⊞ Data View';
-  });
-
-  // Presentation mode toggle ('P')
-  btnPresentation.addEventListener('click', () => {
-    document.body.classList.toggle('presentation-mode');
-  });
-
-  // Shortcuts modal ('?')
-  btnShortcuts.addEventListener('click', () => {
-    shortcutsModal.classList.remove('hidden');
-  });
-  btnCloseModal.addEventListener('click', () => {
-    shortcutsModal.classList.add('hidden');
-  });
-
-  // Global Keyboard Shortcuts
-  window.addEventListener('keydown', (e) => {
-    if (e.target instanceof HTMLInputElement && e.target.type === 'text') return;
-
-    if (e.key === ' ' || e.key === 'k') {
-      playPauseBtn.click();
-      e.preventDefault();
-    } else if (e.key === 'ArrowLeft') {
-      seekTo(Math.max(0, currentTime - 5));
-      e.preventDefault();
-    } else if (e.key === 'ArrowRight') {
-      seekTo(Math.min(60, currentTime + 5));
-      e.preventDefault();
-    } else if (e.key === 'm') {
-      muteBtn.click();
-    } else if (e.key === 'p' || e.key === 'P') {
-      btnPresentation.click();
-    } else if (e.key === '?') {
-      shortcutsModal.classList.toggle('hidden');
-    } else if (e.key === 'd' || e.key === 'D') {
-      btnToggleTable.click();
-    } else if (e.key === '1') {
-      (document.querySelector('[data-mode="exact"]') as HTMLElement)?.click();
-    } else if (e.key === '2') {
-      (document.querySelector('[data-mode="musical"]') as HTMLElement)?.click();
-    } else if (e.key === '3') {
-      (document.querySelector('[data-mode="sweep"]') as HTMLElement)?.click();
-    }
-  });
-
-  // Source Selector
   mediaSourceSelect.addEventListener('change', () => {
     const val = mediaSourceSelect.value;
-    urlInputContainer.classList.toggle('hidden', val !== 'url');
-    fileInputContainer.classList.toggle('hidden', val !== 'upload');
-
     if (val === 'synthetic') {
       simulationCanvas.classList.remove('hidden');
       playerVideo.classList.add('hidden');
-    } else {
+      urlInputContainer.classList.add('hidden');
+      fileInputContainer.classList.add('hidden');
+    } else if (val === 'url') {
       simulationCanvas.classList.add('hidden');
       playerVideo.classList.remove('hidden');
+      urlInputContainer.classList.remove('hidden');
+      fileInputContainer.classList.add('hidden');
+    } else if (val === 'upload') {
+      simulationCanvas.classList.add('hidden');
+      playerVideo.classList.remove('hidden');
+      urlInputContainer.classList.add('hidden');
+      fileInputContainer.classList.remove('hidden');
+    }
+    drawRoiOverlay();
+  });
+
+  loadUrlBtn.addEventListener('click', () => {
+    const url = videoUrlInput.value.trim();
+    if (url) {
+      playerVideo.src = url;
+      playerVideo.load();
     }
   });
 
@@ -665,14 +624,6 @@ function setupEventListeners(): void {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
       playerVideo.src = URL.createObjectURL(file);
-      playerVideo.load();
-    }
-  });
-
-  loadUrlBtn.addEventListener('click', () => {
-    const url = videoUrlInput.value.trim();
-    if (url) {
-      playerVideo.src = url;
       playerVideo.load();
     }
   });

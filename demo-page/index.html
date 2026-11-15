@@ -3,196 +3,177 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Earth Jukebox — The Listening Room</title>
+  <title>Earth Jukebox — NASA Visual Sonification Studio</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="room-layout" id="roomLayout">
-    <!-- Top Bar -->
-    <header class="room-header">
+  <div class="app-layout">
+    <!-- Header -->
+    <header class="app-header">
       <div class="header-left">
-        <div class="room-logo" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+        <div class="nasa-insignia" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="10" />
             <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
             <path d="M2 12h20" />
+            <path d="M16 12a4 4 0 0 1-8 0" stroke="#38BDF8" stroke-width="2.5" />
           </svg>
         </div>
         <div>
-          <h1 class="room-title">Earth Jukebox</h1>
-          <p class="room-subtitle">NASA Space Apps Challenge 2026</p>
+          <h1 class="main-title">Earth Jukebox</h1>
+          <p class="tagline">NASA Space Apps 2026 — Algorithmic Sonification of Earth Visualizations</p>
         </div>
       </div>
-
-      <!-- Source Picker -->
-      <div class="header-center">
-        <label for="demoPresetSelect" class="sr-only">Choose NASA Dataset</label>
-        <select id="demoPresetSelect" class="room-select" aria-label="Select NASA Visualization Preset"></select>
-      </div>
-
-      <!-- Action Utilities -->
-      <div class="header-right">
-        <button id="btnPresentation" class="room-btn-util" title="Toggle presentation mode (Shortcut: P)">
-          <span>P</span> Presentation
-        </button>
-        <button id="btnShortcuts" class="room-btn-util" title="Keyboard shortcuts (Shortcut: ?)">
-          <span>?</span> Shortcuts
-        </button>
-        <span class="badge-status" id="audioStatusBadge">Ready</span>
+      <div class="header-badges">
+        <span class="badge badge-nasablue">NASA EIC & SVS</span>
+        <span class="badge badge-status" id="audioStatusBadge">Audio: Inactive</span>
       </div>
     </header>
 
-    <!-- Main Cinematic Studio Grid -->
-    <main class="room-grid">
-      <!-- Left Column: NASA Visual Feed & Transport -->
-      <section class="room-panel visual-panel">
-        <div class="stage-container" id="videoStage">
+    <!-- Main Content Grid -->
+    <main class="main-grid">
+      <!-- Left Column: Video & Media Controls -->
+      <section class="panel media-panel">
+        <div class="panel-header">
+          <h2 class="panel-title">1. Earth Visualization Feed</h2>
+          <div class="media-source-selector">
+            <label for="mediaSourceSelect" class="sr-only">Choose Video Source</label>
+            <select id="mediaSourceSelect" class="input-select">
+              <option value="synthetic">Interactive NASA Simulation (Real-time)</option>
+              <option value="upload">Upload MP4 / WebM File</option>
+              <option value="url">Enter NASA Video URL</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Custom URL Input (Hidden by default) -->
+        <div id="urlInputContainer" class="url-input-container hidden">
+          <input type="text" id="videoUrlInput" class="input-text" placeholder="https://svs.gsfc.nasa.gov/.../video.mp4">
+          <button id="loadUrlBtn" class="btn btn-secondary">Load</button>
+        </div>
+
+        <!-- File Upload Input (Hidden by default) -->
+        <div id="fileInputContainer" class="file-input-container hidden">
+          <input type="file" id="videoFileInput" accept="video/mp4,video/webm">
+        </div>
+
+        <!-- Video Stage Container -->
+        <div class="video-stage" id="videoStage">
           <canvas id="simulationCanvas" width="640" height="360" class="stage-canvas"></canvas>
           <video id="playerVideo" width="640" height="360" class="stage-video hidden" playsinline controls></video>
+          <!-- ROI Overlay Canvas -->
           <canvas id="roiOverlayCanvas" width="640" height="360" class="roi-overlay"></canvas>
         </div>
 
-        <!-- Transport Bar -->
-        <div class="room-transport">
-          <button id="playPauseBtn" class="btn-play-hero" aria-label="Play or pause sonification">
-            ▶
+        <!-- Media & Sonification Playback Controls -->
+        <div class="controls-toolbar">
+          <button id="playPauseBtn" class="btn btn-primary" aria-label="Play or Pause Sonification">
+            ▶ Start Sonification
           </button>
-          <button id="resetBtn" class="btn-room-icon" aria-label="Reset to beginning" title="Reset video">
-            ⏮
+          <button id="resetBtn" class="btn btn-secondary" aria-label="Reset video to beginning">
+            ⏮ Reset
           </button>
-          <div class="timeline-box">
-            <input type="range" id="timeSlider" min="0" max="100" value="0" step="0.1" class="timeline-slider" aria-label="Seek time">
+          <div class="timeline-container">
+            <label for="timeSlider" class="sr-only">Seek Time</label>
+            <input type="range" id="timeSlider" min="0" max="100" value="0" step="0.1" class="timeline-slider">
             <span id="timeDisplay" class="time-readout">00:00 / 01:00</span>
           </div>
-          <div class="volume-box">
-            <button id="muteBtn" class="btn-room-icon" aria-label="Mute audio">🔊</button>
-            <input type="range" id="volumeSlider" min="0" max="1" value="0.7" step="0.05" class="volume-slider" aria-label="Master volume">
+          <div class="volume-container">
+            <label for="volumeSlider">🔊</label>
+            <input type="range" id="volumeSlider" min="0" max="1" value="0.7" step="0.05" class="volume-slider" aria-label="Master Volume">
           </div>
         </div>
 
-        <!-- Sound Modes & Identity -->
-        <div class="sound-mode-bar">
-          <div class="mode-select-group" role="radiogroup" aria-label="Sonification Mode">
-            <button class="room-mode-btn" data-mode="exact" role="radio" aria-checked="false">Exact</button>
-            <button class="room-mode-btn active" data-mode="musical" role="radio" aria-checked="true">Musical</button>
-            <button class="room-mode-btn" data-mode="sweep" role="radio" aria-checked="false">Sweep</button>
-          </div>
-          <div class="identity-box">
-            <label class="identity-label">
-              <input type="checkbox" id="identityCheckbox" checked>
-              <span>Add sound identity</span>
-            </label>
-          </div>
-        </div>
-        <div id="roomModeDesc" class="room-mode-desc">Values snap to an authentic musical scale.</div>
-
-        <!-- Video Source Options -->
-        <div class="source-options-row">
-          <label for="mediaSourceSelect" class="source-label">Source feed:</label>
-          <select id="mediaSourceSelect" class="room-select-sm">
-            <option value="synthetic">Interactive NASA Simulation (Offline)</option>
-            <option value="upload">Upload MP4 / WebM File</option>
-            <option value="url">Enter NASA Video URL</option>
-          </select>
-          <div id="urlInputContainer" class="url-input-container hidden">
-            <input type="text" id="videoUrlInput" class="input-text-sm" placeholder="https://svs.gsfc.nasa.gov/.../video.mp4">
-            <button id="loadUrlBtn" class="btn-room-sm">Load</button>
-          </div>
-          <div id="fileInputContainer" class="file-input-container hidden">
-            <input type="file" id="videoFileInput" accept="video/mp4,video/webm">
-          </div>
+        <!-- Preset Selection & Details -->
+        <div class="preset-box">
+          <label for="demoPresetSelect" class="preset-label">Active NASA Preset:</label>
+          <select id="demoPresetSelect" class="input-select"></select>
+          <p id="demoPresetDescription" class="preset-description"></p>
         </div>
       </section>
 
-      <!-- Right Column: The Listening Disc & What You're Hearing -->
-      <section class="room-panel sonification-panel">
-        <div class="sonification-header">
-          <div>
-            <h2 id="roomSourceTitle" class="room-source-title">GEDI Forest Canopy Height</h2>
-            <div id="roomProvenanceChip" class="ejb-chip" title="Calibration information">
-              <span id="roomChipIcon" class="ejb-chip-icon" aria-hidden="true"></span>
-              <span id="roomChipText">Estimated from the legend</span>
+      <!-- Right Column: Scientific Metrics & Audio Visualizer -->
+      <section class="panel analytics-panel">
+        <div class="panel-header">
+          <h2 class="panel-title">2. Real-time Extracted Data Contract</h2>
+          <span class="rate-badge" id="rateBadge">12 Hz Tick</span>
+        </div>
+
+        <!-- Metric Cards Grid -->
+        <div class="metrics-dashboard">
+          <div class="dashboard-card">
+            <div class="card-label">Mean Rec. 601 Luminance</div>
+            <div class="card-value" id="valLuma">0.000</div>
+            <div class="meter-bar"><div id="meterLuma" class="meter-fill" style="width: 0%;"></div></div>
+          </div>
+
+          <div class="dashboard-card">
+            <div class="card-label">Legend Physical Value</div>
+            <div class="card-value highlight-cyan" id="valPhysical">0.000</div>
+            <div class="card-sub" id="valPhysicalUnit">Canopy Height (m)</div>
+          </div>
+
+          <div class="dashboard-card">
+            <div class="card-label">Dominant Color & Hue</div>
+            <div class="color-preview-row">
+              <div id="valColorSwatch" class="swatch-box"></div>
+              <div class="card-value" id="valHue">0°</div>
             </div>
+            <div class="card-sub" id="valSat">Saturation: 0%</div>
           </div>
-          <button id="btnToggleTable" class="btn-room-sm" title="Toggle 32-cell data view table">
-            ⊞ Data View
-          </button>
+
+          <div class="dashboard-card">
+            <div class="card-label">Inter-frame Motion Delta</div>
+            <div class="card-value" id="valMotion">0.000</div>
+            <div class="meter-bar"><div id="meterMotion" class="meter-fill" style="width: 0%;"></div></div>
+          </div>
         </div>
 
-        <!-- The Disc Canvas & Grid Container -->
-        <div class="disc-stage-container" id="discStageContainer">
-          <canvas id="roomDiscCanvas" width="340" height="340" class="room-disc-canvas" aria-hidden="true"></canvas>
-        </div>
-
-        <!-- Caption -->
-        <div class="room-caption-box">
-          <p id="roomCaption" class="room-caption">Tall, dense forest across the middle of the view, so the tone is deep and full.</p>
-        </div>
-
-        <!-- What You're Hearing (Always Open Legend) -->
-        <section class="room-legend-section">
-          <h3 class="room-legend-title">What you're hearing</h3>
-          <div id="roomLegendList" class="room-legend-list" role="list"></div>
-        </section>
-      </section>
-    </main>
-
-    <!-- Under the Hood Drawer -->
-    <details class="hood-drawer" id="hoodDrawer">
-      <summary class="hood-summary">
-        <span>Under the hood</span>
-        <span>▼</span>
-      </summary>
-      <div class="hood-content">
-        <!-- 4x8 Spatial Matrix -->
-        <div class="hood-box">
-          <h4>Spatial Matrix (4 Bands × 8 Columns)</h4>
+        <!-- 4x8 Regional Spatial Grid Heatmap -->
+        <div class="region-grid-container">
+          <div class="section-title-sm">
+            <span>Spatial Panning Matrix (4 Rows × 8 Columns)</span>
+            <span class="sub-note">Stereo Pan ← X → Y Pitch</span>
+          </div>
           <div id="spatialHeatmap" class="spatial-heatmap"></div>
         </div>
 
-        <!-- Live Diagnostics -->
-        <div class="hood-box">
-          <h4>Live Extracted Metrics (12 Hz)</h4>
-          <div class="metrics-grid">
-            <div class="metric-item"><span>Luminance:</span> <strong id="valLuma">0.00</strong></div>
-            <div class="metric-item"><span>Dominant Hue:</span> <strong id="valHue">0°</strong></div>
-            <div class="metric-item"><span>Motion Delta:</span> <strong id="valMotion">0.00</strong></div>
-            <div class="metric-item"><span>Physical Value:</span> <strong id="valPhysical">0.00 m</strong></div>
+        <!-- Audio Engine & Synthesizer Monitor -->
+        <div class="synth-monitor">
+          <div class="section-title-sm">
+            <span>3. Web Audio Sonification Engine (Pranav K)</span>
+            <span class="sub-note" id="synthStatus">Listening for CustomEvent "ejb:frame"</span>
+          </div>
+          <div class="mode-selector-row" style="display: flex; align-items: center; justify-content: space-between; margin: 8px 0;">
+            <label for="demoModeSelect" style="font-size: 0.82rem; color: #94a3b8; font-weight: 600;">Sonification Mode:</label>
+            <select id="demoModeSelect" class="input-select" style="max-width: 260px; padding: 4px 8px; font-size: 0.8rem;">
+              <option value="raaga" selected>Indian Classical (Raagas & Taalas)</option>
+              <option value="artistic">Western Modal (Quantized Scales)</option>
+              <option value="scientific">Scientific (Continuous Physical)</option>
+              <option value="scanner">Caldwell-73 Scanner Mode</option>
+            </select>
+          </div>
+          <canvas id="audioVisualizer" width="380" height="60" class="audio-scope"></canvas>
+          <div class="sound-legend-box" id="demoSoundLegend">
+            🎧 <strong>Sound Mapping:</strong> Height / Temperature controls harmonic oscillator frequency; spatial grid pans audio stereo field left to right.
           </div>
         </div>
 
-        <!-- Raw Contract JSON -->
-        <div class="hood-box json-box">
-          <h4>Raw Contract Payload (<code>ejb:frame</code> v1)</h4>
-          <pre id="jsonPayloadView" class="json-pre">{ "waiting": true }</pre>
+        <!-- Live Contract Payload JSON Inspector -->
+        <div class="json-inspector-box">
+          <details>
+            <summary class="inspector-summary">View Raw Contract Payload (<code>ejb:frame</code> v1)</summary>
+            <pre id="jsonPayloadView" class="json-view">{ "waiting": true }</pre>
+          </details>
         </div>
-      </div>
-    </details>
+      </section>
+    </main>
 
-    <!-- Keyboard Shortcuts Modal Sheet (Hidden by default) -->
-    <div id="shortcutsModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-label="Keyboard Shortcuts">
-      <div class="modal-card">
-        <div class="modal-header">
-          <h3>Keyboard Shortcuts</h3>
-          <button id="btnCloseModal" class="btn-room-icon">✕</button>
-        </div>
-        <div class="shortcuts-grid">
-          <div><kbd>Space</kbd> / <kbd>K</kbd></div><div>Play / Pause</div>
-          <div><kbd>←</kbd> / <kbd>→</kbd></div><div>Seek ±5 seconds</div>
-          <div><kbd>↑</kbd> / <kbd>↓</kbd></div><div>Volume Up / Down</div>
-          <div><kbd>M</kbd></div><div>Mute / Unmute</div>
-          <div><kbd>1</kbd> / <kbd>2</kbd> / <kbd>3</kbd></div><div>Exact / Musical / Sweep mode</div>
-          <div><kbd>D</kbd></div><div>Toggle 32-cell Data View</div>
-          <div><kbd>I</kbd></div><div>Toggle Sound Identity</div>
-          <div><kbd>H</kbd></div><div>Toggle Under the Hood Drawer</div>
-          <div><kbd>P</kbd></div><div>Toggle Presentation Mode</div>
-          <div><kbd>?</kbd></div><div>Open this Shortcuts Sheet</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Screen Reader Announcer -->
-    <div id="roomAnnouncer" class="sr-only" aria-live="polite" aria-atomic="true">Earth Jukebox Listening Room initialized.</div>
+    <!-- Footer -->
+    <footer class="app-footer">
+      <span>NASA Space Apps Challenge 2026 — Team Earth Jukebox (Ujwal A & Pranav K)</span>
+      <span>Fully client-side • 0 backend data egress • MIT Licensed</span>
+    </footer>
   </div>
 
   <script type="module" src="main.ts"></script>
