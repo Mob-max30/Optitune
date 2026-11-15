@@ -1,171 +1,141 @@
-# 🌍 OptiTone — Real-Time NASA Visual Sonification
+# OptiTone
 
-[![NASA Space Apps Challenge 2026](https://img.shields.io/badge/NASA%20Space%20Apps-2026-blue.svg)](https://www.spaceappschallenge.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Tests: Vitest](https://img.shields.io/badge/Tests-Vitest%20Passing-brightgreen.svg)]()
-[![Manifest V3](https://img.shields.io/badge/Chrome%20Extension-Manifest%20V3-orange.svg)]()
+OptiTone is an intelligent scientific sonification browser EXTENSION that converts NASA Earth science visualisations, videos and datasets into meaningful, synchronised audio experiences!
 
-> **"Hear the pulse of Earth's living systems."**  
-> An algorithmic, browser-integrated sonification pipeline that translates NASA Earth Information Center (EIC) and Scientific Visualization Studio (SVS) video feeds into rich, synchronized acoustic soundscapes in real time.
+## How it works
 
----
+So... our system uses a browser extension and a standalone Demo Studio to analyse supported scientific sources. It extracts information such as intensity, colour, spatial distribution, motion and temporal changes, organising it into a Scientific Feature Representation (SFR) that preserves scientific context, uncertainty and data provenance. Its semantic mapping engine then translates these features into sound, with an auditory legend explaining what listeners hear.
 
-## 👥 Team & Module Roles
+## How to Download and Install OptiTone
 
-| Module | Owner | Core Responsibilities |
-|---|---|---|
-| **Visual Analysis & Extension Pipeline** | **Ujwal A** | Chrome extension (MV3), media detection, 32×32 hardware downscaling, Rec. 601 luminance, HSV peak hue voting, CIELAB scientific legend calibration, 4×8 regional grid matrix, inter-frame motion delta, transient flash detection, data contract schema, fallback demo studio, packaging & deployment. |
-| **Sonification Engine** | **Pranav K** | Sound synthesis engine, Web Audio API / Tone.js multi-voice synth, parameter-to-audio mapping (canopy/temp → pitch, regional matrix → stereo panning, motion → timbre/filter cutoff, flashes → percussion clicks). |
+Follow this step by step guide to download and install the OptiTone extension in Google Chrome.
 
-**Architectural Boundary:**  
-Ujwal's visual pipeline never synthesizes sound; Pranav's audio engine never touches raw pixels. The two modules communicate exclusively across the standardized **`CustomEvent` `ejb:frame` (Contract v1)** event bus.
+### Step 1: Open GitHub Releases
 
----
+![GitHub Releases Option](docs/images/01_github_releases.jpg)
 
-## 🏗️ System Architecture
+Look at the Releases option on the right side of the GitHub repository page as highlighted by the green box and arrow.
 
-```
-NASA EIC / SVS Web Page
-   │  <video> or <canvas> element
-   ▼
-Content Script (Isolated World)
-   │  MediaFinder → MutationObserver → ROI Crop → 32×32 Canvas ({ willReadFrequently: true })
-   ▼
-Analysis Engine (Dedicated Web Worker / Offscreen Canvas)
-   │  ├── Rec. 601 Perceptual Luminance
-   │  ├── HSV 12-Bin Hue Peak Voting (prevents false color blending)
-   │  ├── CIELAB Scientific Legend Lookup Table (Color → Physical Unit)
-   │  ├── 4×8 Regional Spatial Matrix (Row-major)
-   │  ├── Inter-frame Pixel Motion Delta & Jump Detection
-   │  ├── Localized Flash & Lightning Burst Detector
-   │  └── Caldwell-73 Style Scanner Profile
-   ▼
-Normalizer & Throttler (10–15 Hz, default 12 Hz)
-   │  Strictly clamped floats [0.0, 1.0], rounded to 3 decimal places
-   ▼
-Window CustomEvent Bus: CustomEvent "ejb:frame" (Contract v1)
-   ▼
-Sonification Engine (Web Audio API / Tone.js — Pranav K)
-   │  ├── Physical Measurement → Harmonic Pitch & Frequency Scaling
-   │  ├── 4×8 Spatial Centroid → Stereo Panning & Voice Distribution
-   │  ├── Motion Delta → Timbre & Low-Pass Filter Cutoff
-   │  └── Discrete Flashes → Percussive Acoustic Accents
-   ▼
-Real-time Multichannel Sound, tightly synchronized to video.currentTime
-```
+### Step 2: Download the Release Archive
 
----
+![Download Release Archive](docs/images/02_download_zip_asset.jpg)
 
-## 🛰️ Supported NASA Visualization Presets
+Under the Assets section of the latest release, click on the optitone zip file to download the compressed extension package directly to your computer.
 
-OptiTone includes calibrated presets for NASA's challenge catalog:
+### Step 3: Extract the Downloaded Folder
 
-1. **GEDI Forest Canopy Height (SVS 4950)** — LiDAR canopy measurements (0–60 m) mapped to fundamental pitch center.
-2. **Change in Night Lights 2012–2023 (SVS 5313)** — Decadal urban electrification dynamics driving sonic density and volume.
-3. **Lightning Events from ISS (SVS 5011)** — LIS lightning strikes triggering localized percussive stereo clicks.
-4. **Sea Surface Currents & Temperature (SVS 3912)** — Thermal ocean gradients (-2°C to 35°C) and swirling current pads.
-5. **GEOS Aerosols (SVS 5669)** — Multi-layer atmospheric smoke, dust, sea salt, and sulfate textures.
-6. **DYAMOND Global Atmospheric CO2 (SVS 5196)** — Carbon concentration plumes (395–425 ppm) driving harmonic tension.
-7. **Perpetual Ocean 2 (SVS 5425)** — Mesoscale boundary current activity and eddies.
-8. **Air Quality Model Runs (SVS 5533)** — Particulate matter transport and topological plumes.
-9. **3D Atmospheric River (SVS 4960)** — Water vapor transport corridor width and volume.
-10. **Data Sonification: Caldwell 73 (SVS 13786)** — NASA's conceptual reference for our horizontal column scanner mode.
+![Extract All Zip Folder](docs/images/03_extract_zip_folder.jpg)
 
----
+Locate the downloaded zip file in your file explorer, right click on it, and select the Extract All option to uncompress all files into a regular folder.
 
-## 🚀 Quickstart & Setup
+### Step 4: Open Chrome Extensions and Enable Developer Mode
 
-### Prerequisites
-- Node.js `v18+` (Tested on Node `v24`)
-- Google Chrome browser
+![Chrome Extensions Developer Mode](docs/images/04_chrome_extensions_developer_mode.png)
 
-```bash
-# 1. Clone repository
-git clone https://github.com/ujwalamar314-cell/optitone.git
-cd optitone
+Visit the site chrome://extensions in the Google Chrome address bar and turn on Developer mode using the switch in the top right corner.
 
-# 2. Install dependencies
-npm install
+### Step 5: Click Load Unpacked
 
-# 3. Run unit tests (Vitest)
-npm test
+![Load Unpacked Button](docs/images/05_load_unpacked_button.png)
 
-# 4. Build extension and standalone demo page
-npm run build
+Click the Load unpacked button located in the top left corner of the extensions management page.
 
-# 5. Package hackathon release zip
-npm run package
-```
+### Step 6: Select the Extracted Folder
 
-Release archive will be generated at `releases/optitone-v1.1.1.zip`.
+![Select Extracted Folder](docs/images/06_select_extracted_folder.png)
 
----
+From the folder picker dialog that appears, select the unzipped optitone folder that contains the unpacked extension files.
 
-## 🔌 How to Load Extension in Chrome (30-Second Guide)
+### Step 7: Verify Installation
 
-1. Open Google Chrome and navigate to `chrome://extensions/`.
-2. Toggle **Developer mode** in the top right corner.
-3. Click **Load unpacked** in the top left corner.
-4. Select the `extension/dist` folder inside this repository.
-5. Navigate to any NASA SVS or EIC page (e.g. [GEDI Canopy Height](https://svs.gsfc.nasa.gov/4950/)).
-6. Click the **OptiTone** extension icon in your toolbar (or press <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd>) to enable real-time sonification!
+![Extension Successfully Installed](docs/images/07_optitone_extension_installed.jpg)
 
----
+OptiTone will now appear in your My extensions section, fully installed and ready to use.
 
-## 📜 The Data Contract (`ejb:frame` v1)
+## How to Use OptiTone
 
-```typescript
-export interface EjbFramePayload {
-  v: 1;                             // Contract version
-  t: number;                        // Video media currentTime in seconds (sync anchor)
-  frameIndex: number;               // Monotonic integer index
-  vizId: string;                    // Preset ID (e.g. "gedi-forest-height")
-  metrics: {
-    brightness: number;             // Rec. 601 luma [0.0, 1.0]
-    dominantColor: { r: number; g: number; b: number };
-    hue: number;                    // 12-bin histogram peak hue [0.0, 1.0]
-    saturation: number;             // HSV saturation [0.0, 1.0]
-    dataValue: number | null;       // Legend-calibrated physical measurement [0.0, 1.0]
-    motion: number;                 // Inter-frame pixel difference [0.0, 1.0]
-    regions: {
-      rows: number;                 // 4
-      cols: number;                 // 8
-      brightness: number[];         // 32 floats in [0.0, 1.0]
-      dataValue: (number | null)[]; // 32 floats in [0.0, 1.0]
-    };
-  };
-  flags: {
-    seeked: boolean;                // Reset audio glide on timeline scrub
-    scene_cut: boolean;             // Abrupt visual transition (>0.38 delta)
-  };
-  events?: Array<{ type: 'flash'; x: number; y: number; intensity: number }>;
-  profile?: { cols: number[]; rows: number[] };
-}
-```
+After downloading and installing the extension, follow these steps to experience live sonification.
 
-Detailed specification available in [`docs/CONTRACT.md`](docs/CONTRACT.md).
+### Step 8: View OptiTone in the Browser Toolbar
 
----
+![Extension in Toolbar](docs/images/08_extension_in_toolbar.jpg)
 
-## ♿ Accessibility First
+Click the extensions icon on your browser toolbar to see OptiTone pinned with confirmed site access on supported video pages.
 
-- **Keyboard Navigable:** Full logical tab indexing and visible focus rings.
-- **Screen Reader Announcements:** `aria-live="polite"` region vocalizes preset changes and playback state.
-- **Global Shortcut:** Instant toggle via <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd>.
-- **High-Contrast Dark Theme:** Adheres to WCAG AAA contrast guidelines.
-- **Auditory Sound Legend:** Clear spoken and written explanations of how each physical variable maps to sound.
+### Step 9: Open the Extension Popup Toggle
 
----
+![Extension Toggle Off](docs/images/09_extension_toggle_off.jpg)
 
-## 📚 Documentation Index
+Clicking the OptiTone icon opens a clean control popup containing an on and off toggle switch currently in its off position.
 
-- 📋 [**Data Contract Specification**](docs/CONTRACT.md) — Exact event schemas and rules shared between Ujwal and Pranav.
-- 🔬 [**Scientific Methodology & Architecture**](docs/METHODOLOGY.md) — 10-section judge document detailing mathematical formulas, color science, accuracy limitations, and data credits.
-- 🔒 [**Privacy Policy & Guarantee**](docs/PRIVACY.md) — Verification of 100% local, client-side execution with zero data collection.
+### Step 10: Turn On Sonification
 
----
+![Extension Toggle On](docs/images/10_extension_toggle_on.jpg)
 
-## ⚖️ License & Data Credits
+Clicking the toggle switch turns it on with a glowing green indicator, enabling live synchronised sound generation for the playing scientific video.
 
-- **Software:** Licensed under the [MIT License](LICENSE).
-- **Scientific Visualizations:** Sourced from NASA Goddard Space Flight Center, NASA Jet Propulsion Laboratory, and the NASA Earth Information Center.
+## Project File Structure
+
+Below is the directory structure of the repository:
+
+* docs/
+  * CONTRACT.md: Specification for the standardized ejb:frame v1 scientific event contract.
+  * METHODOLOGY.md: Complete scientific documentation, mathematical models, color calibration, and data provenance.
+  * PRIVACY.md: Privacy policy confirming local client side execution with zero data collection.
+  * images/: Step by step visual screenshots for downloading, installing, and using OptiTone.
+* extension/
+  * manifest.json: Chrome Manifest V3 configuration defining content scripts, background worker, and permissions.
+  * vite.config.ts: Build configuration for bundling extension components.
+  * public/: Static icons and favicon assets in multiple resolutions.
+  * src/
+    * analysis/: Computer vision algorithms including color, luminance, motion delta, normalization, and regional spatial grid calculations.
+    * audio/: Web Audio API synthesis engine, pitch scales, temporal smoothing, spatial panning, and sound profiles.
+    * audio/synths/: Specialized synthesizer voice modules including base lead voice, noise voice, pulse voice, and percussion transients.
+    * background/: Service worker handling lifecycle events and extension management.
+    * content/: Media finder, video frame capture pipeline, and event emitters running inside the web page context.
+    * contract/: TypeScript definitions and data contract schemas.
+    * offscreen/: Offscreen document facilitating background audio context management.
+    * popup/: Browser action popup interface with user controls and live metrics display.
+    * presets/: Calibrated configuration profiles for NASA Earth Information Center and Scientific Visualization Studio datasets.
+* scripts/
+  * build-extension.js: Automated build script producing unpacked extension bundles.
+  * generate-icons.js: Utility generating multi size icon assets.
+  * package.js: Distribution script packaging release archives for GitHub.
+* test/: Comprehensive Vitest test suites verifying audio engine synthesis, color detection, motion tracking, contracts, and spatial algorithms.
+* mock-emitter.ts: Synthetic data emitter for automated end to end testing.
+* package.json: Project configuration, scripts, and runtime dependencies.
+* tsconfig.json: TypeScript compiler options and build targets.
+* vitest.config.ts: Unit and integration testing configuration.
+* LICENSE: MIT open source license.
+
+## Technology Stack
+
+OptiTone is built using the following technologies:
+
+* TypeScript: Static typing across all visual analysis pipelines, audio nodes, and event contracts.
+* JavaScript: High performance ES modules executing inside content scripts, background workers, and audio processors.
+* React: Component based architecture for interactive user interfaces and dashboard inspectors.
+* Vite: Fast frontend tooling and bundler powering extension builds and development workflows.
+* Chrome Manifest V3: Modern extension platform utilizing content scripts, service workers, and offscreen canvas documents.
+* Web Audio API: Browser native audio synthesis graph featuring oscillators, gain nodes, biquad filters, stereo panners, and dynamics compressors.
+* Tone.js: Advanced polyphonic synthesis scheduling, melodic pitch quantization, and musical timing foundations.
+* Web Workers: Off thread computational analysis preventing user interface stutter during high frequency frame processing.
+* Vitest: Unit and integration test runner validating mathematical algorithms and audio parameter ranges.
+* Git and GitHub: Distributed version control, release management, and issue tracking.
+
+## Key innovations
+
+* Scientific Feature Representation: Supports different data types, including scalar values, spatial grids, events, vectors and time series.
+* Scientific integrity: Distinguishes actual measurements, published metadata, calibrated visual estimates and visual proxies.
+* Semantic mapping: Selects sounds based on the meaning and relationships of scientific features rather than arbitrary frequency assignments.
+* Indian musical composition: Our extended direction introduces ragas, talas, melodic structures and suitable instruments to generate original compositions influenced by scientific data.
+* Unique musical identities: Different datasets can produce distinct compositions based on their scientific characteristics, with music evolving as the underlying data changes.
+* Synchronised audio: Sound responds to changes and significant events in the visualisation.
+
+## Benefits and intended impact
+
+OptiTone improves accessibility to complex scientific information, supports auditory learning and makes NASA's Earth science discoveries more engaging. It aims to help users understand patterns and changes through sound, including those that may be difficult to identify visually.
+
+## Development Considerations
+
+We considered scientific accuracy, data provenance, uncertainty, accessibility, audio quality, synchronisation, browser security and cross origin restrictions. We also prioritised performance on standard hardware, fallback demonstrations when live capture is unavailable, and the use of original, appropriately licensed musical content.
